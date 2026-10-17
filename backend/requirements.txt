@@ -1,0 +1,26 @@
+# enterprise-admin backend dependencies
+# Deliberately unpinned: Task 2 Step 2 installs these, then `pip freeze > requirements.lock.txt`
+# captures the exact resolved set as the reproducible baseline.
+
+fastapi
+uvicorn[standard]
+sqlalchemy[asyncio]
+asyncmy
+alembic
+pydantic-settings
+pyjwt
+bcrypt
+pillow
+loguru
+python-multipart
+psutil
+
+# Required by asyncmy to complete caching_sha2_password (MySQL 8 default auth plugin)
+# authentication over a non-TLS loopback connection.
+cryptography
+
+# Test stack
+httpx
+pytest
+pytest-asyncio
+anyio
