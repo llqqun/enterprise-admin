@@ -122,19 +122,40 @@ service.interceptors.response.use(
   },
   async (error: AxiosError<ApiResult<unknown>>) => {
     const config = error.config as RetriableConfig | undefined
+    const status = error.response?.status
 
-    if (error.response?.status === 401 && config && !config._retried) {
+    if (status === 401 && config && !config._retried) {
       config._retried = true
+
+      let token: string | null = null
       try {
-        const token = await refreshAccessToken()
-        config.headers.Authorization = `Bearer ${token}`
-        return await service.request(config)
+        token = await refreshAccessToken()
       } catch {
-        // The session is genuinely over: clear it and let the app navigate.
+        token = null
+      }
+
+      if (token === null) {
+        // The *refresh* failed, so the session genuinely is over.
         removeTokens()
         sessionHooks.onSessionExpired()
         return await Promise.reject(error)
       }
+
+      config.headers.Authorization = `Bearer ${token}`
+      // The replay is deliberately outside the try above. Its own failure returns
+      // through this same handler with `_retried` set, so a 403, a 500 or a timeout
+      // on the replay is handled as an ordinary request failure rather than
+      // destroying a session whose refresh token is still perfectly good.
+      return await service.request(config)
+    }
+
+    if (status === 401) {
+      // A 401 that could not be refreshed away: either the refresh failed above, or
+      // the replay was rejected with a token minted moments ago. Either way the
+      // stored session cannot be trusted.
+      removeTokens()
+      sessionHooks.onSessionExpired()
+      return await Promise.reject(error)
     }
 
     const message = error.response?.data?.msg ?? error.message

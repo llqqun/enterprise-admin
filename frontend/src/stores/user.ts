@@ -14,6 +14,14 @@ export const useUserStore = defineStore('user', () => {
   const profile = ref<UserProfile | null>(null)
   const roles = ref<string[]>([])
   const perms = ref<string[]>([])
+  /**
+   * Whether the session has been hydrated from the server.
+   *
+   * A dedicated flag rather than "roles is non-empty": an account holding no enabled
+   * role legitimately has `roles: []`, and using that as the sentinel made the
+   * navigation guard re-hydrate and replay the same navigation forever.
+   */
+  const hydrated = ref(false)
 
   const isLoggedIn = computed(() => Boolean(accessToken.value))
 
@@ -29,6 +37,7 @@ export const useUserStore = defineStore('user', () => {
     profile.value = result.user
     roles.value = result.roles
     perms.value = result.permissions
+    hydrated.value = true
     return result
   }
 
@@ -39,6 +48,7 @@ export const useUserStore = defineStore('user', () => {
     profile.value = null
     roles.value = []
     perms.value = []
+    hydrated.value = false
     // Dynamic routes belong to the session that produced them.
     usePermissionStore().resetRoutes()
   }
@@ -61,6 +71,7 @@ export const useUserStore = defineStore('user', () => {
     profile,
     roles,
     perms,
+    hydrated,
     isLoggedIn,
     login,
     fetchProfile,

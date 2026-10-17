@@ -14,6 +14,7 @@ from app.core.constants import MenuTypeEnum, StatusEnum
 from app.core.deps import CurrentUser
 from app.models.associations import SysRoleMenu, SysUserRole
 from app.models.menu import SysMenu
+from app.models.role import SysRole
 from app.utils.tree import build_tree
 
 ROUTE_TYPES = (MenuTypeEnum.DIR, MenuTypeEnum.MENU)
@@ -41,10 +42,20 @@ async def _visible_menus(db: AsyncSession, user: CurrentUser) -> list[SysMenu]:
     if not user.is_admin:
         # Only through the user's own roles. Joined (not subqueried) so MySQL can
         # use the composite primary keys on the two link tables.
+        #
+        # The role row itself is joined too: `require_perm` and the profile builder
+        # both ignore a disabled or deleted role, so skipping it here would let the
+        # sidebar advertise menus whose every button answers 403. Two layers giving
+        # different answers for the same account is the bug, not the menu itself.
+        # `SysRole` carries SoftDeleteMixin, so the global filter adds `del_flag='0'`.
         statement = (
             statement.join(SysRoleMenu, SysRoleMenu.menu_id == SysMenu.menu_id)
             .join(SysUserRole, SysUserRole.role_id == SysRoleMenu.role_id)
-            .where(SysUserRole.user_id == user.user_id)
+            .join(SysRole, SysRole.role_id == SysRoleMenu.role_id)
+            .where(
+                SysUserRole.user_id == user.user_id,
+                SysRole.status == StatusEnum.NORMAL,
+            )
         )
 
     statement = statement.order_by(SysMenu.parent_id, SysMenu.order_num)

@@ -43,7 +43,11 @@ export function setupGuards(router: Router): void {
     }
 
     const user = useUserStore()
-    if (user.roles.length > 0) {
+    // `hydrated`, not "has roles": an account with no enabled role has `roles: []`
+    // and is still fully hydrated, so testing for roles here re-hydrated and
+    // replayed the navigation on every pass — an infinite redirect that never
+    // reaches a page.
+    if (user.hydrated) {
       return true
     }
 

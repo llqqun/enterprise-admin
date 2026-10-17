@@ -49,6 +49,17 @@ DISABLED_MSG = "账号已停用，请联系管理员"
 LOCKED_MSG = f"密码错误次数过多，账号已锁定 {LOGIN_FAIL_WINDOW_SECONDS // 60} 分钟"
 
 
+def _lockout_key(user_name: str) -> str:
+    """Key the failure counter on the account, not on the spelling of the request.
+
+    MySQL compares `user_name` under the `utf8mb4_0900_ai_ci` collation, which is
+    case-insensitive, so `ADMIN` reaches the same row as `admin`. Keying on the raw
+    request string handed an attacker a fresh budget for every casing, so the
+    documented "5 failures locks the account" held only for one spelling.
+    """
+    return LOGIN_FAIL_KEY_PREFIX + user_name.strip().casefold()
+
+
 @lru_cache(maxsize=1)
 def _dummy_password_hash() -> str:
     """A real bcrypt hash of an unguessable value.
@@ -163,7 +174,7 @@ async def authenticate(
 
     await _consume_captcha(payload.uuid, payload.code)
 
-    fail_key = LOGIN_FAIL_KEY_PREFIX + payload.username
+    fail_key = _lockout_key(payload.username)
     if (await cache.get(fail_key) or 0) >= LOGIN_FAIL_LIMIT:
         await record_login_log(
             db,

@@ -3,7 +3,7 @@
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.constants import WILDCARD_PERM
+from app.core.constants import WILDCARD_PERM, DelFlagEnum, StatusEnum
 from app.core.deps import CurrentUser
 from app.models.associations import SysRoleMenu, SysUserRole
 from app.models.menu import SysMenu
@@ -182,3 +182,86 @@ async def test_routers_endpoint_requires_authentication(client: AsyncClient) -> 
     resp = await client.get(ROUTERS_URL)
 
     assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# A revoked role must stop handing out menus
+# ---------------------------------------------------------------------------
+
+
+async def _user_with_role(
+    db_session: AsyncSession, role: SysRole, menu: SysMenu | None
+) -> SysUser:
+    if menu is not None:
+        db_session.add(SysRoleMenu(role_id=role.role_id, menu_id=menu.menu_id))
+        await db_session.flush()
+
+    user = SysUser(
+        user_name=f"holder_{role.role_key}", nick_name="h", password="x", status="0"
+    )
+    db_session.add(user)
+    await db_session.flush()
+    db_session.add(SysUserRole(user_id=user.user_id, role_id=role.role_id))
+    await db_session.flush()
+    return user
+
+
+async def test_routers_exclude_a_disabled_role(
+    db_session: AsyncSession, menu_tree: dict[str, SysMenu]
+) -> None:
+    """The interface layer already ignores non-NORMAL roles; this layer must too.
+
+    Otherwise the sidebar advertises menus whose every button answers 403 — the
+    profile says `roles: []` while the menu tree says otherwise, and nobody can tell
+    which layer is right.
+    """
+    role = SysRole(
+        role_name="已停用角色",
+        role_key="disabled_role",
+        role_sort=8,
+        data_scope="5",
+        status=StatusEnum.DISABLED,
+    )
+    db_session.add(role)
+    await db_session.flush()
+    user = await _user_with_role(db_session, role, menu_tree["system"])
+
+    assert await get_routers(db_session, _non_admin(user.user_id)) == []
+
+
+async def test_routers_exclude_a_soft_deleted_role(
+    db_session: AsyncSession, menu_tree: dict[str, SysMenu]
+) -> None:
+    role = SysRole(
+        role_name="已删除角色",
+        role_key="deleted_role",
+        role_sort=8,
+        data_scope="5",
+        status=StatusEnum.NORMAL,
+        del_flag=DelFlagEnum.DELETED,
+    )
+    db_session.add(role)
+    await db_session.flush()
+    user = await _user_with_role(db_session, role, menu_tree["system"])
+
+    assert await get_routers(db_session, _non_admin(user.user_id)) == []
+
+
+async def test_routers_still_return_menus_for_a_normal_role(
+    db_session: AsyncSession, menu_tree: dict[str, SysMenu]
+) -> None:
+    """The guard against the two tests above must not break the working case."""
+    role = SysRole(
+        role_name="正常角色",
+        role_key="normal_role",
+        role_sort=8,
+        data_scope="5",
+        status=StatusEnum.NORMAL,
+    )
+    db_session.add(role)
+    await db_session.flush()
+    user = await _user_with_role(db_session, role, menu_tree["monitor"])
+
+    routers = await get_routers(db_session, _non_admin(user.user_id))
+
+    assert [node["path"] for node in routers] == ["/monitor"]

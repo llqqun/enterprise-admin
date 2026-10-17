@@ -202,6 +202,77 @@ describe('single-flight refresh', () => {
     expect(protectedCalls).toBe(2)
   })
 
+  it('ends the session when the replay is rejected with the fresh token', async () => {
+    setTokens('stale', 'refresh-1', 1800)
+    useResponder((config) => {
+      if (config.url === REFRESH_URL) {
+        return envelope({
+          access_token: 'fresh',
+          refresh_token: 'refresh-2',
+          expires_in: 1800,
+          token_type: 'bearer',
+        })
+      }
+      return failure(401, '登录状态已失效，请重新登录')
+    })
+
+    await expect(request.get('/system/user')).rejects.toBeDefined()
+
+    expect(getAccessToken()).toBeNull()
+    expect(getRefreshToken()).toBeNull()
+    expect(sessionHooks.onSessionExpired).toHaveBeenCalledTimes(1)
+  })
+
+  // A failure of the *replayed* request that is not an authentication failure says
+  // nothing about the session. Treating it as one threw away a perfectly good
+  // refresh token and ejected the user.
+  it('keeps the session when the replay fails with a server error', async () => {
+    setTokens('stale', 'refresh-1', 1800)
+    const { responder } = rotatingResponder({ secondStatus: 500 })
+    useResponder(responder)
+
+    await expect(request.get('/system/user')).rejects.toBeDefined()
+
+    expect(getAccessToken()).toBe('fresh')
+    expect(getRefreshToken()).toBe('refresh-2')
+    expect(sessionHooks.onSessionExpired).not.toHaveBeenCalled()
+  })
+
+  it('keeps the session when the replay is forbidden', async () => {
+    setTokens('stale', 'refresh-1', 1800)
+    const { responder } = rotatingResponder({ secondStatus: 403 })
+    useResponder(responder)
+
+    await expect(request.get('/system/user')).rejects.toBeDefined()
+
+    expect(getAccessToken()).toBe('fresh')
+    expect(sessionHooks.onSessionExpired).not.toHaveBeenCalled()
+    expect(sessionHooks.notifyError).toHaveBeenCalled()
+  })
+
+  it('keeps the session when the replay fails at the network layer', async () => {
+    setTokens('stale', 'refresh-1', 1800)
+    useResponder((config) => {
+      if (config.url === REFRESH_URL) {
+        return envelope({
+          access_token: 'fresh',
+          refresh_token: 'refresh-2',
+          expires_in: 1800,
+          token_type: 'bearer',
+        })
+      }
+      if (bearer(config) === 'Bearer fresh') {
+        throw new AxiosError('timeout of 15000ms exceeded', 'ECONNABORTED', config)
+      }
+      return failure(401, 'nope')
+    })
+
+    await expect(request.get('/system/user')).rejects.toBeDefined()
+
+    expect(getAccessToken()).toBe('fresh')
+    expect(sessionHooks.onSessionExpired).not.toHaveBeenCalled()
+  })
+
   it('does not try to refresh a 401 from the refresh endpoint itself', async () => {
     setTokens('stale', 'refresh-1', 1800)
     let refreshCalls = 0
