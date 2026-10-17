@@ -1,0 +1,51 @@
+/* Global styles: a small reset, layout variables, and the transitions the shell uses. */
+
+:root {
+  --ea-aside-width: 210px;
+  --ea-aside-collapsed-width: 64px;
+  --ea-header-height: 50px;
+  --ea-tags-height: 34px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family:
+    'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial,
+    sans-serif;
+  font-size: 14px;
+  color: var(--el-text-color-primary);
+  background-color: var(--el-bg-color-page);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Collapsed-state transitions for the sidebar. */
+.fade-transform-enter-active,
+.fade-transform-leave-active {
+  transition: all 0.25s;
+}
+
+.fade-transform-enter-from {
+  opacity: 0;
+  transform: translateX(-12px);
+}
+
+.fade-transform-leave-to {
+  opacity: 0;
+  transform: translateX(12px);
+}

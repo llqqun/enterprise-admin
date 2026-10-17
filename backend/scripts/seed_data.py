@@ -63,32 +63,51 @@ USERS: list[tuple[str, str, str, list[str], str, list[str]]] = [
 ]
 
 #: (key, name, parent key, order, type, path, component, route name, perms, icon)
+#: Icons are Element Plus component names: the frontend renders `menu.meta.icon`
+#: through `<component :is="...">`, so an icon here must name a real component.
 MENUS: list[tuple[str, str, str, int, str, str | None, str | None, str | None, str | None, str | None]] = [
-    ("system", "系统管理", "", 1, "M", "/system", None, "System", None, "system"),
-    ("system_user", "用户管理", "system", 1, "C", "user", "system/user/index", "SystemUser", "system:user:list", "user"),
+    ("system", "系统管理", "", 1, "M", "/system", None, "System", None, "Setting"),
+    ("system_user", "用户管理", "system", 1, "C", "user", "system/user/index", "SystemUser", "system:user:list", "User"),
     ("system_user_query", "用户查询", "system_user", 1, "F", None, None, None, "system:user:query", None),
     ("system_user_add", "用户新增", "system_user", 2, "F", None, None, None, "system:user:add", None),
     ("system_user_edit", "用户修改", "system_user", 3, "F", None, None, None, "system:user:edit", None),
     ("system_user_remove", "用户删除", "system_user", 4, "F", None, None, None, "system:user:remove", None),
-    ("system_role", "角色管理", "system", 2, "C", "role", "system/role/index", "SystemRole", "system:role:list", "peoples"),
+    ("system_role", "角色管理", "system", 2, "C", "role", "system/role/index", "SystemRole", "system:role:list", "UserFilled"),
     ("system_role_add", "角色新增", "system_role", 1, "F", None, None, None, "system:role:add", None),
     ("system_role_edit", "角色修改", "system_role", 2, "F", None, None, None, "system:role:edit", None),
     ("system_role_remove", "角色删除", "system_role", 3, "F", None, None, None, "system:role:remove", None),
-    ("system_menu", "菜单管理", "system", 3, "C", "menu", "system/menu/index", "SystemMenu", "system:menu:list", "tree-table"),
+    ("system_menu", "菜单管理", "system", 3, "C", "menu", "system/menu/index", "SystemMenu", "system:menu:list", "Grid"),
     ("system_menu_add", "菜单新增", "system_menu", 1, "F", None, None, None, "system:menu:add", None),
     ("system_menu_edit", "菜单修改", "system_menu", 2, "F", None, None, None, "system:menu:edit", None),
     ("system_menu_remove", "菜单删除", "system_menu", 3, "F", None, None, None, "system:menu:remove", None),
-    ("system_dept", "部门管理", "system", 4, "C", "dept", "system/dept/index", "SystemDept", "system:dept:list", "tree"),
-    ("system_post", "岗位管理", "system", 5, "C", "post", "system/post/index", "SystemPost", "system:post:list", "post"),
-    ("system_dict", "字典管理", "system", 6, "C", "dict", "system/dict/index", "SystemDict", "system:dict:list", "dict"),
-    ("system_config", "参数设置", "system", 7, "C", "config", "system/config/index", "SystemConfig", "system:config:list", "edit"),
-    ("system_notice", "通知公告", "system", 8, "C", "notice", "system/notice/index", "SystemNotice", "system:notice:list", "message"),
-    ("monitor", "监控中心", "", 2, "M", "/monitor", None, "Monitor", None, "monitor"),
-    ("monitor_operlog", "操作日志", "monitor", 1, "C", "operlog", "monitor/operlog/index", "MonitorOperlog", "monitor:operlog:list", "form"),
-    ("monitor_loginlog", "登录日志", "monitor", 2, "C", "loginlog", "monitor/loginlog/index", "MonitorLoginlog", "monitor:loginlog:list", "logininfor"),
-    ("monitor_online", "在线用户", "monitor", 3, "C", "online", "monitor/online/index", "MonitorOnline", "monitor:online:list", "online"),
-    ("monitor_file", "文件管理", "monitor", 4, "C", "file", "monitor/file/index", "MonitorFile", "monitor:file:list", "upload"),
+    ("system_dept", "部门管理", "system", 4, "C", "dept", "system/dept/index", "SystemDept", "system:dept:list", "Share"),
+    ("system_post", "岗位管理", "system", 5, "C", "post", "system/post/index", "SystemPost", "system:post:list", "Postcard"),
+    ("system_dict", "字典管理", "system", 6, "C", "dict", "system/dict/index", "SystemDict", "system:dict:list", "Collection"),
+    ("system_config", "参数设置", "system", 7, "C", "config", "system/config/index", "SystemConfig", "system:config:list", "Edit"),
+    ("system_notice", "通知公告", "system", 8, "C", "notice", "system/notice/index", "SystemNotice", "system:notice:list", "Bell"),
+    ("monitor", "监控中心", "", 2, "M", "/monitor", None, "Monitor", None, "Monitor"),
+    ("monitor_operlog", "操作日志", "monitor", 1, "C", "operlog", "monitor/operlog/index", "MonitorOperlog", "monitor:operlog:list", "Document"),
+    ("monitor_loginlog", "登录日志", "monitor", 2, "C", "loginlog", "monitor/loginlog/index", "MonitorLoginlog", "monitor:loginlog:list", "List"),
+    ("monitor_online", "在线用户", "monitor", 3, "C", "online", "monitor/online/index", "MonitorOnline", "monitor:online:list", "Connection"),
+    ("monitor_file", "文件管理", "monitor", 4, "C", "file", "monitor/file/index", "MonitorFile", "monitor:file:list", "Upload"),
 ]
+
+#: Menu fields the seeder owns and may refresh on an existing row.
+MENU_MUTABLE_FIELDS: tuple[str, ...] = (
+    "menu_name",
+    "parent_id",
+    "order_num",
+    "menu_type",
+    "path",
+    "component",
+    "route_name",
+    "perms",
+    "icon",
+    "visible",
+    "is_frame",
+    "is_cache",
+    "status",
+)
 
 #: Menu keys each role may see. `"*"` means every menu (the superuser).
 ROLE_MENUS: dict[str, list[str] | str] = {
@@ -124,6 +143,35 @@ async def _get_or_create(
     db.add(instance)
     await db.flush()
     return instance, True
+
+
+async def _upsert_presentation(
+    db: AsyncSession,
+    model: Any,
+    *,
+    filters: dict[str, Any],
+    defaults: dict[str, Any],
+    mutable: tuple[str, ...],
+) -> tuple[Any, bool]:
+    """Create the row, or refresh its *presentation* fields when it already exists.
+
+    This is what makes the constants above the source of truth: renaming a menu or
+    changing an icon and re-running the seeder updates the existing row instead of
+    being silently ignored. Only the named fields are touched, so nothing that holds
+    user data (a password, a status someone changed deliberately) is overwritten.
+    """
+    existing = await db.scalar(select(model).filter_by(**filters))
+    if existing is None:
+        instance = model(**{**filters, **defaults})
+        db.add(instance)
+        await db.flush()
+        return instance, True
+
+    for field in mutable:
+        if field in defaults:
+            setattr(existing, field, defaults[field])
+    await db.flush()
+    return existing, False
 
 
 # ---------------------------------------------------------------------------
@@ -195,10 +243,11 @@ async def seed_menus(db: AsyncSession) -> dict[str, SysMenu]:
     for key, name, parent_key, order_num, menu_type, path, comp, route, perms, icon in MENUS:
         if parent_key:
             continue
-        menu, _ = await _get_or_create(
+        menu, _ = await _upsert_presentation(
             db,
             SysMenu,
             filters={"route_name": route},
+            mutable=MENU_MUTABLE_FIELDS,
             defaults={
                 "menu_name": name,
                 "parent_id": 0,
@@ -229,10 +278,11 @@ async def seed_menus(db: AsyncSession) -> dict[str, SysMenu]:
                 continue
 
             lookup = {"perms": perms} if perms else {"route_name": route}
-            menu, _ = await _get_or_create(
+            menu, _ = await _upsert_presentation(
                 db,
                 SysMenu,
                 filters=lookup,
+                mutable=MENU_MUTABLE_FIELDS,
                 defaults={
                     "menu_name": name,
                     "parent_id": parent.menu_id,

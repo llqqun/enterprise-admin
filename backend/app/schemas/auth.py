@@ -9,8 +9,13 @@ from app.schemas.common import ORMModel
 class LoginRequest(BaseModel):
     username: str = Field(min_length=1, max_length=30, description="账号")
     password: str = Field(min_length=1, description="密码")
-    code: str = Field(min_length=1, max_length=8, description="验证码")
-    uuid: str = Field(min_length=1, max_length=64, description="验证码会话标识")
+    # Not required here on purpose: whether a captcha code must be present depends on
+    # runtime configuration (`CAPTCHA_ENABLED`), which is the captcha service's
+    # business, not the schema's. The schema validates only shape and length — an
+    # empty code against an enabled captcha is a 400 from the service, not a 422 from
+    # validation, and those mean different things to a client.
+    code: str = Field(default="", max_length=8, description="验证码")
+    uuid: str = Field(default="", max_length=64, description="验证码会话标识")
 
     @field_validator("password")
     @classmethod

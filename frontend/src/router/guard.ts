@@ -15,7 +15,7 @@ import { getRouters } from '@/api/auth'
 import { appendCatchAll, usePermissionStore } from '@/stores/permission'
 import { useUserStore } from '@/stores/user'
 import { getAccessToken } from '@/utils/auth'
-import { LOGIN_ROUTE_PATH, NOT_FOUND_ROUTE_PATH } from './routes'
+import { LAYOUT_ROUTE_NAME, LOGIN_ROUTE_PATH, NOT_FOUND_ROUTE_PATH } from './routes'
 
 import 'nprogress/nprogress.css'
 
@@ -52,7 +52,11 @@ export function setupGuards(router: Router): void {
       await user.fetchProfile()
       const menus = await getRouters()
       const permission = usePermissionStore()
-      permission.generateRoutes(menus).forEach((route) => router.addRoute(route))
+      // Registered as children of the layout, not at the router root — otherwise the
+      // generated pages render outside the shell (no sidebar, no breadcrumb).
+      permission
+        .generateRoutes(menus)
+        .forEach((route) => router.addRoute(LAYOUT_ROUTE_NAME, route))
       appendCatchAll(router)
       // Replay the navigation now that the route exists.
       return { path: to.path, query: to.query, hash: to.hash, replace: true }
