@@ -23,7 +23,7 @@
 | 前端框架 | Vue 3 + TypeScript | 3.5 / 6.0 |
 | 构建 | Vite | 8.3 |
 | UI | Element Plus（按需自动导入） | 2.14 |
-| 状态 / 路由 | Pinia / Vue Router | 4.0 / 5.3 |
+| 状态 / 路由 | Pinia / Vue Router | 4.1 / 5.4 |
 | 测试 | pytest + httpx / Vitest | 9.1 / 4.1 |
 
 版本由官方脚手架 `create-vue` 与 pip 解析后锁定（见 `backend/requirements.lock.txt`），
@@ -47,7 +47,7 @@ enterprise-admin/
 │  │  └─ middlewares/        request-id
 │  ├─ alembic/               迁移
 │  ├─ scripts/seed_data.py   幂等种子数据
-│  └─ tests/                 122 个测试
+│  └─ tests/                 130 个测试
 ├─ frontend/                 Vue 3 应用
 │  └─ src/
 │     ├─ api/  stores/  router/  layout/  directives/  types/  utils/  views/
@@ -126,7 +126,7 @@ powershell -ExecutionPolicy Bypass -File stop.ps1
 | 账号 | 密码 | 角色 | 登录后可见 |
 |---|---|---|---|
 | `admin` | `Admin@123456` | 超级管理员 | 全部菜单，权限码 `*:*:*` |
-| `manager` | `Manager@123` | 部门主管 | 用户管理 + 在线用户（数据范围＝本部门及以下） |
+| `manager` | `Manager@123` | 部门主管 | 用户管理 + 在线用户（**仅菜单级差异**；角色的 `data_scope=4` 目前不参与查询，见下方「已知取舍」） |
 | `staff` | `Staff@123` | 普通员工 | **无任何菜单** —— 侧边栏为空是预期行为 |
 | `nobody` | `Nobody@123` | 无菜单角色 | 同上 |
 
@@ -187,7 +187,10 @@ cd backend
 `WHERE del_flag='0'`。需要看已删数据时用 `include_deleted(session)` 显式逃生。
 
 业务键（`user_name`、`role_key`）**故意不建数据库唯一索引**：否则逻辑删除后无法重建同名记录。
-唯一性由 service 层在事务内校验。
+
+> **⚠️ 尚未闭环**：设计文档承诺的「唯一性由 service 层在事务内校验」**目前并不存在** —— P0 没有任何
+> 创建接口，所以还没暴露出问题；P1 一旦加上用户/角色新增，就可能出现两条同名的活记录。这是 P1-A 的
+> 必做项，已在 `docs/P0决策记录.md` 四.1 记录。
 
 ### 缓存
 
@@ -219,6 +222,18 @@ cd backend
 它会同时开启 `/docs`（接口文档）与一组**未鉴权**的 `/__test__/*` 调试路由，其中包含一个故意抛异常的
 接口。演示环境无所谓，**对外暴露前必须把 `.env` 里的 `DEBUG` 改成 `false`** —— 改完 `/docs` 与那些
 调试路由都会一并消失。
+
+**Q：重启电脑后 `pytest` 全部报错 / 连不上数据库**
+MySQL **没有**注册成 Windows 服务（有意为之：服务注册会写 C 盘注册表与 `C:\ProgramData`），
+所以它不会随开机自启。测试套件现在会先探测连通性，直接用一句话提示你怎么办：
+
+```
+Cannot reach MySQL at 127.0.0.1:3306 ...
+Start it with:
+  powershell -ExecutionPolicy Bypass -File tools\mysql-ctl.ps1 -Action start
+```
+
+不想要这个手动步骤，可以自己把 `tools\install-*.ps1` 改成注册服务，或把 `start.ps1` 加进启动项。
 
 **Q：为什么 `pytest` 必须连着 MySQL？**
 测试跑在独立的 `enterprise_admin_test` 库上，每个用例一个事务并回滚，不会碰开发库。这是有意的：

@@ -7,6 +7,7 @@ Every test that touches the database runs against `enterprise_admin_test`, insid
 a transaction that is rolled back — the development database is never touched.
 """
 
+import socket
 from collections.abc import AsyncGenerator
 
 import pytest
@@ -52,7 +53,31 @@ async def _isolated_cache() -> AsyncGenerator[None, None]:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def migrated_test_database() -> None:
+def require_running_database() -> None:
+    """Fail once, clearly, when MySQL is not reachable.
+
+    MySQL is deliberately **not** registered as a Windows service (see
+    `docs/P0决策记录.md`), so it does not survive a reboot. Without this check a
+    stopped database produces ~130 identical fixture-level `OperationalError`
+    failures, which reads like "the test suite is broken" rather than "start the
+    database" — the message below is the whole point of this fixture.
+    """
+    target = _test_settings()
+    try:
+        with socket.create_connection((target.MYSQL_HOST, target.MYSQL_PORT), timeout=3):
+            return
+    except OSError as exc:
+        pytest.exit(
+            f"\nCannot reach MySQL at {target.MYSQL_HOST}:{target.MYSQL_PORT} ({exc}).\n"
+            "It is not installed as a Windows service, so it does not start with the machine.\n"
+            "Start it with:\n"
+            "  powershell -ExecutionPolicy Bypass -File tools\\mysql-ctl.ps1 -Action start\n",
+            returncode=1,
+        )
+
+
+@pytest.fixture(scope="session", autouse=True)
+def migrated_test_database(require_running_database: None) -> None:
     """Bring the test schema to head once per session.
 
     Deliberately synchronous: alembic's async `env.py` calls `asyncio.run()`, which
