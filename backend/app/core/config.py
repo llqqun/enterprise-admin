@@ -31,6 +31,12 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    # Turning this off removes the human check from the only endpoint that needs
+    # one. It exists because no automated client can read a captcha image (the
+    # answer lives in this process's memory), and keeping it on by default is what
+    # makes any internet-facing deployment safe.
+    CAPTCHA_ENABLED: bool = True
+
     # -- database ---------------------------------------------------------
     MYSQL_HOST: str = "127.0.0.1"
     MYSQL_PORT: int = 3306

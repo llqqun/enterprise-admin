@@ -9,7 +9,7 @@ from app.core.deps import CurrentUser, get_current_user
 from app.core.response import success
 from app.db.session import get_db
 from app.schemas.auth import LoginRequest, RefreshRequest
-from app.services import auth_service
+from app.services import auth_service, menu_service
 from app.utils.request_info import client_ip
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -49,6 +49,14 @@ async def refresh(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     return success(await auth_service.refresh_tokens(db, payload.refresh_token))
+
+
+@router.get("/routers", summary="获取当前用户的动态路由")
+async def routers(
+    current: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    return success(await menu_service.get_routers(db, current))
 
 
 @router.post("/logout", summary="退出登录并使当前令牌立即失效")

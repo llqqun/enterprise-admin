@@ -246,6 +246,98 @@ async def permitted_user(db_session: AsyncSession, staff_role: SysRole) -> SysUs
 
 
 @pytest.fixture()
+async def menu_tree(db_session: AsyncSession) -> dict[str, SysMenu]:
+    """A miniature menu tree: two directories, two pages, one button, one disabled.
+
+    Mirrors the shape of the real seed data closely enough to exercise tree
+    building, button exclusion and the disabled filter.
+    """
+    nodes: dict[str, SysMenu] = {}
+
+    def _add(key: str, **fields: object) -> None:
+        nodes[key] = SysMenu(**fields)  # type: ignore[arg-type]
+
+    _add(
+        "system",
+        menu_name="系统管理",
+        parent_id=0,
+        order_num=1,
+        path="/system",
+        route_name="System",
+        menu_type="M",
+        icon="system",
+        status=StatusEnum.NORMAL,
+    )
+    db_session.add(nodes["system"])
+    await db_session.flush()
+
+    _add(
+        "user",
+        menu_name="用户管理",
+        parent_id=nodes["system"].menu_id,
+        order_num=1,
+        path="user",
+        component="system/user/index",
+        route_name="SystemUser",
+        menu_type="C",
+        perms="system:user:list",
+        status=StatusEnum.NORMAL,
+    )
+    db_session.add(nodes["user"])
+    await db_session.flush()
+
+    _add(
+        "button",
+        menu_name="用户新增",
+        parent_id=nodes["user"].menu_id,
+        order_num=1,
+        menu_type="F",
+        perms="system:user:add",
+        status=StatusEnum.NORMAL,
+    )
+    _add(
+        "monitor",
+        menu_name="监控中心",
+        parent_id=0,
+        order_num=2,
+        path="/monitor",
+        route_name="Monitor",
+        menu_type="M",
+        status=StatusEnum.NORMAL,
+    )
+    db_session.add(nodes["monitor"])
+    await db_session.flush()
+
+    _add(
+        "online",
+        menu_name="在线用户",
+        parent_id=nodes["monitor"].menu_id,
+        order_num=1,
+        path="online",
+        component="monitor/online/index",
+        route_name="MonitorOnline",
+        menu_type="C",
+        perms="monitor:online:list",
+        status=StatusEnum.NORMAL,
+    )
+    _add(
+        "disabled",
+        menu_name="已停用菜单",
+        parent_id=0,
+        order_num=9,
+        path="/disabled",
+        component="disabled/index",
+        menu_type="C",
+        status=StatusEnum.DISABLED,
+    )
+    for key in ("button", "online", "disabled"):
+        db_session.add(nodes[key])
+    await db_session.flush()
+
+    return nodes
+
+
+@pytest.fixture()
 async def disabled_user(db_session: AsyncSession) -> SysUser:
     return await _make_user(db_session, "disabled", status=StatusEnum.DISABLED)
 
