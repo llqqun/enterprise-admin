@@ -194,11 +194,15 @@ D:\work\enterprise-admin\
 │  ├─ 接口清单.md
 │  ├─ 面试讲解手册.md
 │  └─ superpowers\specs\         # 本设计文档
-├─ 初始化.ps1                     # 一次性：建库 + 迁移 + 种子数据
-├─ 启动.ps1                       # MySQL + 后端 + 前端
-├─ 停止.ps1
+├─ init.ps1                       # 一次性：.env + 建库 + 迁移 + 种子数据
+├─ start.ps1                      # MySQL + 后端 + 前端
+├─ stop.ps1                       # 停止（-IncludeMysql 连库一起停）
 └─ README.md
 ```
+
+> **脚本命名与编码**：三个脚本的文件名与内容一律纯 ASCII。本机 PowerShell 5.1 的控制台代码页是
+> GB2312，UTF-8（无 BOM）的中文脚本内容会被误码解析，而中文文件名在 cmd 逐层传参时容易丢失；
+> 中文说明一律放在 README 与 docs 中。原设计里的 `初始化.ps1` / `启动.ps1` / `停止.ps1` 因此改名。
 
 ---
 
@@ -507,7 +511,7 @@ AppException (基类，带 code/msg)
 
 ## 12. 交付物
 
-1. 可运行系统（`初始化.ps1` → `启动.ps1` 冷启动即可用）
+1. 可运行系统（`init.ps1` → `start.ps1` 冷启动即可用）
 2. `README.md`：环境要求、安装、启动、常见问题、目录说明
 3. 文档集：
    - `docs/架构设计.md`
