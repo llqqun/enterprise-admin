@@ -26,6 +26,20 @@ export default defineConfigWithVueTs(
     files: ['src/**/__tests__/*'],
   },
 
+  {
+    // Route-level page components are named by their route, and `index.vue` is not
+    // a style choice: the backend hands out component strings like
+    // `system/user/index`, and `import.meta.glob('../views/**/*.vue')` maps them to
+    // files. Renaming these to multi-word names would break that mapping, so the
+    // rule (whose purpose is avoiding collisions with HTML elements) does not apply
+    // here. The same goes for the `404` page, which is named after its status code.
+    name: 'app/views-component-names',
+    files: ['src/views/**/*.vue'],
+    rules: {
+      'vue/multi-word-component-names': 'off',
+    },
+  },
+
   ...pluginOxlint.buildFromOxlintConfigFile('.oxlintrc.json'),
 
   skipFormatting,
