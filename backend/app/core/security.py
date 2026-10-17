@@ -34,7 +34,7 @@ CAPTCHA_LENGTH = 4
 
 #: One message for every token failure. Telling a caller apart "expired" from
 #: "forged" hands them a probing oracle for free.
-_TOKEN_REJECTED_MSG = "登录状态已失效，请重新登录"
+SESSION_REJECTED_MSG = "登录状态已失效，请重新登录"
 
 
 # ---------------------------------------------------------------------------
@@ -100,10 +100,10 @@ def decode_token(token: str, expected_type: TokenType) -> dict[str, Any]:
         # ExpiredSignatureError subclasses InvalidTokenError, so expired,
         # malformed and wrongly-signed tokens all land here. `from None` keeps the
         # original exception out of the traceback.
-        raise UnauthorizedException(_TOKEN_REJECTED_MSG) from None
+        raise UnauthorizedException(SESSION_REJECTED_MSG) from None
 
     if payload.get("type") != expected_type:
-        raise UnauthorizedException(_TOKEN_REJECTED_MSG)
+        raise UnauthorizedException(SESSION_REJECTED_MSG)
 
     return payload
 

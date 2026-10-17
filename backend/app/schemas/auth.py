@@ -3,6 +3,7 @@
 from pydantic import BaseModel, Field, field_validator
 
 from app.core.security import BCRYPT_MAX_BYTES
+from app.schemas.common import ORMModel
 
 
 class LoginRequest(BaseModel):
@@ -32,3 +33,31 @@ class LoginResponse(BaseModel):
     refresh_token: str
     expires_in: int = Field(description="访问令牌有效期（秒）")
     token_type: str = "bearer"
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str = Field(min_length=1)
+
+
+class UserProfile(ORMModel):
+    """What a client may know about its own account.
+
+    Note what is absent: `password`. The response cannot leak it because the field
+    does not exist here, which is stronger than remembering to strip it.
+    """
+
+    user_id: int
+    user_name: str
+    nick_name: str
+    dept_id: int | None = None
+    email: str | None = None
+    phonenumber: str | None = None
+    sex: str | None = None
+    avatar: str | None = None
+    status: str
+
+
+class ProfileResponse(BaseModel):
+    user: UserProfile
+    roles: list[str]
+    permissions: list[str]

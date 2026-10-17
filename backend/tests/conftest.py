@@ -22,10 +22,14 @@ from app.core.constants import DelFlagEnum, StatusEnum
 from app.core.security import hash_password
 from app.db.session import get_db
 from app.db.soft_delete import install_soft_delete_filter
-from app.main import create_app
+from app.main import DEBUG_TEST_PERM, create_app
+from app.models.associations import SysRoleMenu, SysUserRole
+from app.models.menu import SysMenu
+from app.models.role import SysRole
 from app.models.user import SysUser
 
 TEST_DB = "enterprise_admin_test"
+TEST_PERM = DEBUG_TEST_PERM
 
 
 def _test_settings() -> Settings:
@@ -145,10 +149,100 @@ async def _make_user(db_session: AsyncSession, user_name: str, **overrides: obje
     return user
 
 
+async def _grant_role(db_session: AsyncSession, user: SysUser, role: SysRole) -> None:
+    """Link a user to a role by inserting the association row.
+
+    Deliberately not `user.roles.append(...)`: on an already-flushed instance the
+    collection was never loaded by a query, so touching it triggers a lazy load —
+    which raises MissingGreenlet under async. Loading the user through a `select()`
+    first would also work; writing the link row says what is actually happening.
+    """
+    db_session.add(SysUserRole(user_id=user.user_id, role_id=role.role_id))
+    await db_session.flush()
+
+
+async def _grant_menu(db_session: AsyncSession, role: SysRole, menu: SysMenu) -> None:
+    """Same reasoning as `_grant_role`."""
+    db_session.add(SysRoleMenu(role_id=role.role_id, menu_id=menu.menu_id))
+    await db_session.flush()
+
+
 @pytest.fixture()
-async def admin_user(db_session: AsyncSession) -> SysUser:
-    """An active account named `admin` with a known password."""
-    return await _make_user(db_session, "admin")
+async def admin_role(db_session: AsyncSession) -> SysRole:
+    """The superuser role: `is_admin` is decided by this role key alone."""
+    role = SysRole(
+        role_name="超级管理员",
+        role_key="admin",
+        role_sort=1,
+        data_scope="1",
+        status=StatusEnum.NORMAL,
+    )
+    db_session.add(role)
+    await db_session.flush()
+    return role
+
+
+@pytest.fixture()
+async def staff_role(db_session: AsyncSession) -> SysRole:
+    role = SysRole(
+        role_name="普通员工",
+        role_key="staff",
+        role_sort=9,
+        data_scope="5",
+        status=StatusEnum.NORMAL,
+    )
+    db_session.add(role)
+    await db_session.flush()
+    return role
+
+
+@pytest.fixture()
+async def admin_user(db_session: AsyncSession, admin_role: SysRole) -> SysUser:
+    """An active account named `admin` holding the superuser role."""
+    user = await _make_user(db_session, "admin")
+    await _grant_role(db_session, user, admin_role)
+    return user
+
+
+@pytest.fixture()
+async def normal_user(db_session: AsyncSession, staff_role: SysRole) -> SysUser:
+    """An active, non-superuser account with no permissions at all."""
+    user = await _make_user(db_session, "staff")
+    await _grant_role(db_session, user, staff_role)
+    return user
+
+
+@pytest.fixture()
+async def permitted_user(db_session: AsyncSession, staff_role: SysRole) -> SysUser:
+    """A non-superuser whose role grants exactly the `system:test:view` button.
+
+    Exists so a 403 can be told apart from "the permission check always fails".
+    """
+    menu = SysMenu(
+        menu_name="测试按钮",
+        parent_id=0,
+        order_num=1,
+        menu_type="F",
+        perms=TEST_PERM,
+        status=StatusEnum.NORMAL,
+    )
+    db_session.add(menu)
+    await db_session.flush()
+
+    role = SysRole(
+        role_name="受限角色",
+        role_key="limited",
+        role_sort=5,
+        data_scope="5",
+        status=StatusEnum.NORMAL,
+    )
+    db_session.add(role)
+    await db_session.flush()
+    await _grant_menu(db_session, role, menu)
+
+    user = await _make_user(db_session, "limited")
+    await _grant_role(db_session, user, role)
+    return user
 
 
 @pytest.fixture()

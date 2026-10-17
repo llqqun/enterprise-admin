@@ -1,10 +1,13 @@
 """FastAPI application factory."""
 
-from fastapi import FastAPI
+from typing import Any
+
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.core.config import get_settings
+from app.core.deps import CurrentUser, require_perm
 from app.core.exceptions import (
     BusinessException,
     ForbiddenException,
@@ -13,6 +16,10 @@ from app.core.exceptions import (
 )
 from app.core.logging import setup_logging
 from app.middlewares.request_id import RequestIdMiddleware
+
+#: The permission code the debug-only permission endpoint demands. Shared with the
+#: test suite so the fixture and the route cannot drift apart.
+DEBUG_TEST_PERM = "system:test:view"
 
 
 def _register_debug_routes(app: FastAPI) -> None:
@@ -47,6 +54,12 @@ def _register_debug_routes(app: FastAPI) -> None:
     @app.get("/__test__/validate", include_in_schema=False)
     async def _validate(q: int) -> dict[str, int]:
         return {"q": q}
+
+    @app.get("/__test__/need-perm", include_in_schema=False)
+    async def _need_perm(
+        current: CurrentUser = Depends(require_perm(DEBUG_TEST_PERM)),
+    ) -> dict[str, Any]:
+        return {"user_id": current.user_id, "perm": DEBUG_TEST_PERM}
 
 
 def create_app() -> FastAPI:

@@ -50,3 +50,11 @@ class BusinessType(IntEnum):
     IMPORT = 6
     FORCE_LOGOUT = 7
     CLEAN = 9
+
+
+#: Role key that identifies the superuser.
+ADMIN_ROLE_KEY = "admin"
+
+#: Permission code standing for "everything". Granted to the superuser only, so
+#: that introducing a new permission can never lock the administrator out.
+WILDCARD_PERM = "*:*:*"
