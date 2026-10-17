@@ -16,10 +16,14 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from app.core.cache import cache
 from app.core.config import BACKEND_DIR, Settings, get_settings
+from app.core.constants import DelFlagEnum, StatusEnum
+from app.core.security import hash_password
 from app.db.session import get_db
 from app.db.soft_delete import install_soft_delete_filter
 from app.main import create_app
+from app.models.user import SysUser
 
 TEST_DB = "enterprise_admin_test"
 
@@ -27,6 +31,20 @@ TEST_DB = "enterprise_admin_test"
 def _test_settings() -> Settings:
     """Application settings pointed at the test database."""
     return get_settings().model_copy(update={"MYSQL_DB": TEST_DB})
+
+
+@pytest.fixture(autouse=True)
+async def _isolated_cache() -> AsyncGenerator[None, None]:
+    """Empty the process-wide cache around every test.
+
+    `cache` is a module-level singleton by design, so without this a lockout counter
+    or a captcha answer left behind by one test silently changes the behaviour of
+    the next one. Clearing on both sides also keeps a failing test from poisoning
+    whatever runs after it.
+    """
+    await cache.clear()
+    yield
+    await cache.clear()
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -104,3 +122,41 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     async with AsyncClient(transport=transport, base_url="http://test") as async_client:
         yield async_client
     app.dependency_overrides.clear()
+
+
+# ---------------------------------------------------------------------------
+# Domain fixtures
+# ---------------------------------------------------------------------------
+
+#: The password every seeded test account uses.
+SEED_PASSWORD = "Admin@123456"
+
+
+async def _make_user(db_session: AsyncSession, user_name: str, **overrides: object) -> SysUser:
+    fields: dict[str, object] = {
+        "nick_name": user_name,
+        "password": hash_password(SEED_PASSWORD),
+        "status": StatusEnum.NORMAL,
+    }
+    fields.update(overrides)
+    user = SysUser(user_name=user_name, **fields)  # type: ignore[arg-type]
+    db_session.add(user)
+    await db_session.flush()
+    return user
+
+
+@pytest.fixture()
+async def admin_user(db_session: AsyncSession) -> SysUser:
+    """An active account named `admin` with a known password."""
+    return await _make_user(db_session, "admin")
+
+
+@pytest.fixture()
+async def disabled_user(db_session: AsyncSession) -> SysUser:
+    return await _make_user(db_session, "disabled", status=StatusEnum.DISABLED)
+
+
+@pytest.fixture()
+async def deleted_admin_user(db_session: AsyncSession) -> SysUser:
+    """The same account name, logically deleted."""
+    return await _make_user(db_session, "admin", del_flag=DelFlagEnum.DELETED)

@@ -148,6 +148,7 @@ default-storage-engine=INNODB
 max_connections=200
 max_allowed_packet=64M
 explicit_defaults_for_timestamp=1
+default-time-zone='+00:00'
 sql_mode=STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 log-error=$logFwd/error.log
 slow_query_log=1
