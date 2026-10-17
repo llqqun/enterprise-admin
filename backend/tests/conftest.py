@@ -8,7 +8,7 @@ a transaction that is rolled back — the development database is never touched.
 """
 
 import socket
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Awaitable, Callable
 
 import pytest
 from alembic import command
@@ -28,6 +28,7 @@ from app.models.associations import SysRoleMenu, SysUserRole
 from app.models.menu import SysMenu
 from app.models.role import SysRole
 from app.models.user import SysUser
+from app.services.auth_service import CAPTCHA_KEY_PREFIX
 
 TEST_DB = "enterprise_admin_test"
 TEST_PERM = DEBUG_TEST_PERM
@@ -371,3 +372,37 @@ async def disabled_user(db_session: AsyncSession) -> SysUser:
 async def deleted_admin_user(db_session: AsyncSession) -> SysUser:
     """The same account name, logically deleted."""
     return await _make_user(db_session, "admin", del_flag=DelFlagEnum.DELETED)
+
+
+@pytest.fixture()
+def login(client: AsyncClient) -> Callable[..., Awaitable[dict[str, str]]]:
+    """Log in over real HTTP and return the Authorization header.
+
+    Every authenticated test needs the captcha dance (mint, read the answer out of
+    the process cache, post). Having it in one place means a change to the login
+    contract does not have to be chased through a dozen test modules.
+    """
+
+    async def _login(username: str, password: str = SEED_PASSWORD) -> dict[str, str]:
+        captcha_uuid = (await client.get("/api/v1/auth/captchaImage")).json()["data"]["uuid"]
+        code = await cache.get(CAPTCHA_KEY_PREFIX + captcha_uuid)
+        resp = await client.post(
+            "/api/v1/auth/login",
+            json={"username": username, "password": password, "code": code, "uuid": captcha_uuid},
+        )
+        assert resp.status_code == 200, resp.text
+        return {"Authorization": f"Bearer {resp.json()['data']['access_token']}"}
+
+    return _login
+
+
+@pytest.fixture()
+async def admin_headers(admin_user: SysUser, login: Callable[..., Awaitable[dict[str, str]]]) -> dict[str, str]:
+    """A superuser's Authorization header."""
+    return await login("admin")
+
+
+@pytest.fixture()
+async def staff_headers(normal_user: SysUser, login: Callable[..., Awaitable[dict[str, str]]]) -> dict[str, str]:
+    """A permissionless account's Authorization header, for 403 assertions."""
+    return await login("staff")
