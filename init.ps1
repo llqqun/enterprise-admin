@@ -73,6 +73,22 @@ if (-not (Test-Path -LiteralPath $mysqlExe)) {
 }
 
 # ---------------------------------------------------------------------------
+# 0b. keep pip's download cache off C:
+# ---------------------------------------------------------------------------
+# A venv-scoped pip.ini is the only place this setting can live that travels with
+# the environment the project actually uses. Without it pip writes to
+# %LOCALAPPDATA%\pip\cache on C:, which the project's constraints rule out.
+$pipIni = Join-Path $backendDir '.venv\pip.ini'
+if (-not (Test-Path -LiteralPath $pipIni)) {
+    Write-Step "pointing pip's cache at D:\devtools\caches\pip (venv pip.ini)"
+    @(
+        '[global]',
+        'cache-dir = D:\devtools\caches\pip',
+        'index-url = https://pypi.tuna.tsinghua.edu.cn/simple'
+    ) | Set-Content -LiteralPath $pipIni -Encoding ASCII
+}
+
+# ---------------------------------------------------------------------------
 # 1. .env (generated, never committed)
 # ---------------------------------------------------------------------------
 if (Test-Path -LiteralPath $envFile) {
