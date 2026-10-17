@@ -38,3 +38,13 @@ class SoftDeleteMixin:
         server_default=DelFlagEnum.EXISTS,
         comment="删除标志(0存在 2删除)",
     )
+
+
+class RemarkMixin:
+    """Free-form annotation column.
+
+    Kept separate from `TimestampMixin` because the append-only log and session
+    tables carry audit timestamps but have no use for a remark.
+    """
+
+    remark: Mapped[str | None] = mapped_column(String(500), default=None, comment="备注")
