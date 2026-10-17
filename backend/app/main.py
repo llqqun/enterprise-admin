@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.core.config import get_settings
-from app.core.deps import CurrentUser, require_perm
+from app.core.deps import CurrentUser, get_current_user, require_perm
 from app.core.exceptions import (
     BusinessException,
     ForbiddenException,
@@ -15,6 +15,7 @@ from app.core.exceptions import (
     register_exception_handlers,
 )
 from app.core.logging import setup_logging
+from app.core.response import success
 from app.middlewares.request_id import RequestIdMiddleware
 
 #: The permission code the debug-only permission endpoint demands. Shared with the
@@ -60,6 +61,30 @@ def _register_debug_routes(app: FastAPI) -> None:
         current: CurrentUser = Depends(require_perm(DEBUG_TEST_PERM)),
     ) -> dict[str, Any]:
         return {"user_id": current.user_id, "perm": DEBUG_TEST_PERM}
+
+    @app.get("/__test__/scope", include_in_schema=False)
+    async def _scope(current: CurrentUser = Depends(get_current_user)) -> dict[str, Any]:
+        """Expose the caller's resolved data scope.
+
+        Reading it back over real HTTP is the only way to prove the wiring in
+        `get_current_user` works. The profile response deliberately does not carry
+        it: a data scope is a server-side query concern, not client state.
+        """
+        scope = current.data_scope
+        return success(
+            {
+                "unrestricted": scope.unrestricted,
+                "grants_nothing": scope.grants_nothing,
+                "rules": [
+                    {
+                        "mode": rule.mode,
+                        "dept_id": rule.dept_id,
+                        "custom_dept_ids": sorted(rule.custom_dept_ids),
+                    }
+                    for rule in scope.rules
+                ],
+            }
+        )
 
 
 def create_app() -> FastAPI:

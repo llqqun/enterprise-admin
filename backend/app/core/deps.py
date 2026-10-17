@@ -21,6 +21,7 @@ from app.core.security import SESSION_REJECTED_MSG, decode_token
 from app.db.session import get_db
 from app.models.token import SysUserToken
 from app.models.user import SysUser
+from app.services.data_scope import DataScope, resolve_data_scope
 from app.utils.timeutil import utcnow
 
 MISSING_CREDENTIALS_MSG = "未提供身份凭证"
@@ -45,6 +46,8 @@ class CurrentUser:
     #: jti of the access token in use. Carried so logout can end exactly this
     #: session rather than every session the account owns.
     access_jti: str = ""
+    #: Row-level visibility, resolved once per request from the account's roles.
+    data_scope: DataScope = field(default_factory=lambda: DataScope(user_id=0))
 
 
 def _permission_codes(user: SysUser) -> set[str]:
@@ -108,6 +111,9 @@ async def get_current_user(
         is_admin=is_admin,
         perms=perms,
         access_jti=jti,
+        data_scope=resolve_data_scope(
+            user.roles, user_id=user.user_id, dept_id=user.dept_id, is_admin=is_admin
+        ),
     )
 
 
