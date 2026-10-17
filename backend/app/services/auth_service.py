@@ -62,6 +62,10 @@ def _dummy_password_hash() -> str:
 
 async def build_captcha() -> CaptchaResponse:
     """Mint a captcha and remember its answer under a fresh uuid."""
+    if not get_settings().CAPTCHA_ENABLED:
+        # Still return a uuid so the client's request shape never changes.
+        return CaptchaResponse(uuid=uuid.uuid4().hex, img="", captcha_enabled=False)
+
     code, image_base64 = generate_captcha()
     captcha_uuid = uuid.uuid4().hex
     await cache.set(CAPTCHA_KEY_PREFIX + captcha_uuid, code, ttl=CAPTCHA_TTL_SECONDS)
@@ -74,6 +78,9 @@ async def _consume_captcha(captcha_uuid: str, code: str) -> None:
     The entry is deleted *before* the comparison, so a code can never be replayed —
     not even by the request that gets it wrong.
     """
+    if not get_settings().CAPTCHA_ENABLED:
+        return
+
     key = CAPTCHA_KEY_PREFIX + captcha_uuid
     expected = await cache.get(key)
     await cache.delete(key)
