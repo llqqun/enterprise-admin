@@ -120,3 +120,52 @@ class MenuOut(ORMModel):
 class RoleMenuTreeSelect(BaseModel):
     menus: list[TreeSelectNode]
     checkedKeys: list[int]
+
+
+class RoleCreate(BaseModel):
+    role_name: str = Field(min_length=1, max_length=30)
+    role_key: str = Field(min_length=1, max_length=100, description="权限字符串（业务键，唯一）")
+    role_sort: int = Field(default=0, ge=0)
+    status: str = Field(default=StatusEnum.NORMAL, pattern="^[01]$")
+    remark: str | None = Field(default=None, max_length=500)
+
+
+class RoleUpdate(RoleCreate):
+    role_id: int
+
+
+class RoleOut(ORMModel):
+    role_id: int
+    role_name: str
+    role_key: str
+    role_sort: int
+    data_scope: str
+    status: str
+    remark: str | None = None
+    create_time: datetime | None = None
+
+
+class RoleDataScope(BaseModel):
+    role_id: int
+    data_scope: str = Field(pattern="^[1-5]$", description="1全部 2自定义 3本部门 4本部门及以下 5仅本人")
+    dept_ids: list[int] = Field(default_factory=list)
+
+
+class RoleStatusChange(BaseModel):
+    role_id: int
+    status: str = Field(pattern="^[01]$")
+
+
+class AuthUserRequest(BaseModel):
+    role_id: int
+    user_id: int
+
+
+class UserBrief(ORMModel):
+    """授权弹窗里的用户行：只给识别与展示必需的字段。"""
+
+    user_id: int
+    user_name: str
+    nick_name: str
+    dept_id: int | None = None
+    status: str
