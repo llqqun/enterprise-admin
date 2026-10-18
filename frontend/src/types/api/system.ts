@@ -52,3 +52,124 @@ export interface PostOption {
   post_code: string
   post_name: string
 }
+
+
+/** Element Plus `el-tree-select` / `el-tree` 需要的节点形状。 */
+export interface TreeSelectNode {
+  id: number
+  label: string
+  children: TreeSelectNode[]
+}
+
+export interface Dept {
+  dept_id: number
+  parent_id: number
+  ancestors: string
+  dept_name: string
+  order_num: number
+  leader: string | null
+  phone: string | null
+  email: string | null
+  status: StatusValue
+  remark?: string | null
+  children?: Dept[]
+}
+
+export interface DeptQuery {
+  dept_name?: string
+  status?: StatusValue
+}
+
+export interface DeptForm {
+  dept_id?: number
+  parent_id: number
+  dept_name: string
+  order_num: number
+  leader?: string | null
+  phone?: string | null
+  email?: string | null
+  status: StatusValue
+  remark?: string | null
+}
+
+export interface MenuItem {
+  menu_id: number
+  menu_name: string
+  parent_id: number
+  order_num: number
+  path: string | null
+  component: string | null
+  query: string | null
+  route_name: string | null
+  is_frame: number
+  is_cache: number
+  /** M 目录 / C 菜单 / F 按钮 */
+  menu_type: 'M' | 'C' | 'F'
+  visible: StatusValue
+  status: StatusValue
+  perms: string | null
+  icon: string | null
+  children?: MenuItem[]
+}
+
+export interface Role {
+  role_id: number
+  role_name: string
+  role_key: string
+  role_sort: number
+  /** 1 全部 / 2 自定义 / 3 本部门 / 4 本部门及以下 / 5 仅本人 */
+  data_scope: string
+  status: StatusValue
+  remark?: string | null
+  create_time?: string | null
+}
+
+export interface RoleQuery extends PageQuery {
+  role_name?: string
+  role_key?: string
+  status?: StatusValue
+}
+
+export interface RoleForm {
+  role_id?: number
+  role_name: string
+  role_key: string
+  role_sort: number
+  status: StatusValue
+  remark?: string | null
+}
+
+export interface RoleDataScope {
+  role_id: number
+  data_scope: string
+  dept_ids: number[]
+}
+
+export interface UserRow {
+  user_id: number
+  user_name: string
+  nick_name: string
+  dept_id: number | null
+  status: StatusValue
+}
+
+export interface UserQuery extends PageQuery {
+  user_name?: string
+  status?: StatusValue
+}
+
+export interface UserForm {
+  user_id?: number
+  user_name: string
+  nick_name: string
+  /** 仅在新增时提交。 */
+  password?: string
+  dept_id?: number | null
+  email?: string | null
+  phonenumber?: string | null
+  sex?: string | null
+  status: StatusValue
+  remark?: string | null
+  role_ids?: number[]
+  post_ids?: number[]
+}
