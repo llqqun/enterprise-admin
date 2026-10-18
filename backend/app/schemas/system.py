@@ -169,3 +169,42 @@ class UserBrief(ORMModel):
     nick_name: str
     dept_id: int | None = None
     status: str
+
+
+class UserCreate(BaseModel):
+    user_name: str = Field(min_length=1, max_length=30)
+    nick_name: str = Field(min_length=1, max_length=30)
+    #: 72 字节是 bcrypt 的硬上限，超过会被静默截断。
+    password: str = Field(min_length=6, max_length=72)
+    dept_id: int | None = None
+    email: str | None = Field(default=None, max_length=50)
+    phonenumber: str | None = Field(default=None, max_length=11)
+    sex: str | None = Field(default=None, pattern="^[012]$")
+    status: str = Field(default=StatusEnum.NORMAL, pattern="^[01]$")
+    remark: str | None = Field(default=None, max_length=500)
+    role_ids: list[int] = Field(default_factory=list)
+    post_ids: list[int] = Field(default_factory=list)
+
+
+class UserUpdate(BaseModel):
+    user_id: int
+    user_name: str = Field(min_length=1, max_length=30)
+    nick_name: str = Field(min_length=1, max_length=30)
+    dept_id: int | None = None
+    email: str | None = Field(default=None, max_length=50)
+    phonenumber: str | None = Field(default=None, max_length=11)
+    sex: str | None = Field(default=None, pattern="^[012]$")
+    status: str = Field(default=StatusEnum.NORMAL, pattern="^[01]$")
+    remark: str | None = Field(default=None, max_length=500)
+    role_ids: list[int] = Field(default_factory=list)
+    post_ids: list[int] = Field(default_factory=list)
+
+
+class UserResetPwd(BaseModel):
+    user_id: int
+    password: str = Field(min_length=6, max_length=72)
+
+
+class UserStatusChange(BaseModel):
+    user_id: int
+    status: str = Field(pattern="^[01]$")
