@@ -72,14 +72,17 @@ function openCreate(): void {
   dialogVisible.value = true
 }
 
-function openEdit(row: Post): void {
+function openEdit(row: unknown): void {
+  // 表格插槽给出的行是 Element Plus 的 `DefaultRow`，与我们的行类型不同名；
+  // 在函数入口收口一次，模板里就不必到处写断言。
+  const post = row as Post
   Object.assign(form, {
-    post_id: row.post_id,
-    post_code: row.post_code,
-    post_name: row.post_name,
-    post_sort: row.post_sort,
-    status: row.status,
-    remark: row.remark ?? '',
+    post_id: post.post_id,
+    post_code: post.post_code,
+    post_name: post.post_name,
+    post_sort: post.post_sort,
+    status: post.status,
+    remark: post.remark ?? '',
   })
   dialogVisible.value = true
 }
@@ -108,12 +111,13 @@ async function submit(): Promise<void> {
 // 删除
 // ---------------------------------------------------------------------------
 
-async function handleDelete(row?: Post): Promise<void> {
-  const targets = row ? [row] : selection.value
+async function handleDelete(row?: unknown): Promise<void> {
+  const target = row as Post | undefined
+  const targets = target ? [target] : selection.value
   if (targets.length === 0) {
     return
   }
-  const label = row ? `岗位「${row.post_name}」` : `选中的 ${targets.length} 个岗位`
+  const label = target ? `岗位「${target.post_name}」` : `选中的 ${targets.length} 个岗位`
   try {
     await ElMessageBox.confirm(`确认删除${label}？`, '提示', { type: 'warning' })
   } catch {
@@ -122,6 +126,12 @@ async function handleDelete(row?: Post): Promise<void> {
   await deletePosts(targets.map((item) => item.post_id))
   ElMessage.success('删除成功')
   await fetchList()
+}
+
+function handleSelectionChange(val: unknown): void {
+  // Element Plus 把 selection-change 的参数标成内部的 `DefaultRow`，与我们的行类型不同名，
+  // 所以在这里收口一次，而不是把 any 扩散到模板里。
+  selection.value = val as Post[]
 }
 
 onMounted(fetchList)
@@ -154,7 +164,7 @@ onMounted(fetchList)
       </el-button>
     </el-row>
 
-    <el-table v-loading="loading" :data="rows" border @selection-change="(val: Post[]) => (selection = val)">
+    <el-table v-loading="loading" :data="rows" border @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="48" />
       <el-table-column prop="post_code" label="岗位编码" min-width="140" />
       <el-table-column prop="post_name" label="岗位名称" min-width="160" />
