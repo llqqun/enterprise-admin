@@ -76,3 +76,47 @@ class PostOption(ORMModel):
     post_id: int
     post_code: str
     post_name: str
+
+
+class MenuCreate(BaseModel):
+    parent_id: int = Field(default=0, description="父菜单ID，0 表示顶级")
+    menu_name: str = Field(min_length=1, max_length=50)
+    order_num: int = Field(default=0, ge=0)
+    menu_type: str = Field(pattern="^[MCF]$", description="M目录 C菜单 F按钮")
+    path: str | None = Field(default=None, max_length=200)
+    component: str | None = Field(default=None, max_length=255)
+    query: str | None = Field(default=None, max_length=255)
+    route_name: str | None = Field(default=None, max_length=50)
+    is_frame: int = Field(default=1, ge=0, le=1)
+    is_cache: int = Field(default=0, ge=0, le=1)
+    visible: str = Field(default="0", pattern="^[01]$")
+    status: str = Field(default=StatusEnum.NORMAL, pattern="^[01]$")
+    perms: str | None = Field(default=None, max_length=100)
+    icon: str | None = Field(default=None, max_length=100)
+
+
+class MenuUpdate(MenuCreate):
+    menu_id: int
+
+
+class MenuOut(ORMModel):
+    menu_id: int
+    menu_name: str
+    parent_id: int
+    order_num: int
+    path: str | None = None
+    component: str | None = None
+    query: str | None = None
+    route_name: str | None = None
+    is_frame: int = 1
+    is_cache: int = 0
+    menu_type: str
+    visible: str = "0"
+    status: str = StatusEnum.NORMAL
+    perms: str | None = None
+    icon: str | None = None
+
+
+class RoleMenuTreeSelect(BaseModel):
+    menus: list[TreeSelectNode]
+    checkedKeys: list[int]
