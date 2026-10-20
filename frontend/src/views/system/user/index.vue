@@ -24,6 +24,10 @@ import {
   updateUser,
 } from '@/api/system/user'
 import type { Role, TreeSelectNode, UserForm, UserQuery, UserRow } from '@/types/api/system'
+import { hasPermission } from '@/utils/permission'
+import { useUserStore } from '@/stores/user'
+
+const userStore = useUserStore()
 
 const loading = ref(false)
 const rows = ref<UserRow[]>([])
@@ -216,9 +220,20 @@ async function handleDelete(row?: unknown): Promise<void> {
 }
 
 onMounted(async () => {
-  const [tree, roles] = await Promise.all([deptTreeSelect(), listRoles({ page_num: 1, page_size: 100 })])
-  deptTree.value = tree
-  roleOptions.value = roles.rows
+  // 辅助数据（部门树、角色列表）**不是**主列表的前置条件：只有 `system:user:list` 的账号拿不到
+  // `system:dept:list` / `system:role:list`，那是正常情况而不是错误。
+  //
+  // 这里原本用 `Promise.all([...])` 再 `fetchList()`，后果是任何一个辅助请求 403 都会让整段
+  // onMounted 抛错、主列表请求根本发不出去 —— 页面于是宣称「当前账号可见 0 个用户」，
+  // 而这是假话。是浏览器验收发现的，单元测试与类型检查都抓不到这类顺序缺陷。
+  if (hasPermission(userStore.perms, ['system:dept:list'])) {
+    deptTree.value = await deptTreeSelect().catch(() => [])
+  }
+  if (hasPermission(userStore.perms, ['system:role:list'])) {
+    roleOptions.value = await listRoles({ page_num: 1, page_size: 100 })
+      .then((data) => data.rows)
+      .catch(() => [])
+  }
   await fetchList()
 })
 </script>

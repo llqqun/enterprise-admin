@@ -63,8 +63,8 @@ const isWildcard = computed(() => user.perms.includes('*:*:*'))
       class="dashboard__note"
       type="info"
       :closable="false"
-      title="本页为 P0 交付范围"
-      description="动态路由、按钮级权限与登录闭环已完成；用户/角色/菜单/部门/岗位等业务页面属于 P1，因此这些菜单项目前会落到 404 页。"
+      title="关于这个演示账号"
+      description="左侧菜单与页面上的按钮都由你的角色权限码决定：换一个权限更小的账号登录，菜单会更少、按钮会消失、用户列表的可见行数也会变少 —— 这就是 RBAC 与数据权限。"
     />
   </div>
 </template>
