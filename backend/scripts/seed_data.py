@@ -22,6 +22,7 @@ from app.core.security import hash_password
 from app.db.session import AsyncSessionLocal
 from app.models.associations import SysRoleMenu, SysUserPost, SysUserRole
 from app.models.dept import SysDept
+from app.models.dict import SysDictData, SysDictType
 from app.models.menu import SysMenu
 from app.models.post import SysPost
 from app.models.role import SysRole
@@ -123,6 +124,26 @@ MENU_MUTABLE_FIELDS: tuple[str, ...] = (
     "is_cache",
     "status",
 )
+
+#: 常用字典：(dict_type, dict_name, [(label, value, sort, tag_type)])。
+#: tag_type 直接用 Element Plus 的标签色，让状态列的语义在数据里就定好。
+DICTS: list[tuple[str, str, list[tuple[str, str, int, str]]]] = [
+    (
+        "sys_user_sex",
+        "用户性别",
+        [("男", "0", 1, "success"), ("女", "1", 2, "warning"), ("未知", "2", 3, "info")],
+    ),
+    (
+        "sys_normal_disable",
+        "通用状态",
+        [("正常", "0", 1, "success"), ("停用", "1", 2, "danger")],
+    ),
+    (
+        "sys_yes_no",
+        "是否",
+        [("是", "Y", 1, "success"), ("否", "N", 2, "info")],
+    ),
+]
 
 #: Menu keys each role may see. `"*"` means every menu (the superuser).
 ROLE_MENUS: dict[str, list[str] | str] = {
@@ -386,6 +407,38 @@ async def seed_users(
 # ---------------------------------------------------------------------------
 
 
+async def seed_dicts(db: AsyncSession) -> int:
+    """常用字典。
+
+    只刷新展示字段（标签、排序、颜色），不动 `status` —— 有人手工停用了某一项，
+    重跑种子不该把它悄悄打开。用 `_upsert_presentation` 正好是这个语义。
+    """
+    created = 0
+    for dict_type, dict_name, items in DICTS:
+        await _upsert_presentation(
+            db,
+            SysDictType,
+            filters={"dict_type": dict_type},
+            defaults={"dict_name": dict_name},
+            mutable=("dict_name",),
+        )
+        for label, value, sort, tag_type in items:
+            _, is_new = await _upsert_presentation(
+                db,
+                SysDictData,
+                filters={"dict_type": dict_type, "dict_value": value},
+                defaults={
+                    "dict_label": label,
+                    "dict_sort": sort,
+                    "tag_type": tag_type,
+                },
+                mutable=("dict_label", "dict_sort", "tag_type"),
+            )
+            created += int(is_new)
+    await db.flush()
+    return created
+
+
 async def main() -> None:
     setup_logging()
     async with AsyncSessionLocal() as db:
@@ -395,15 +448,17 @@ async def main() -> None:
         menus = await seed_menus(db)
         links = await link_role_menus(db, roles, menus)
         await seed_users(db, depts, roles, posts)
+        dict_rows = await seed_dicts(db)
         await db.commit()
 
     logger.info(
-        "seed complete: {} depts, {} posts, {} roles, {} menus, {} role-menu links",
+        "seed complete: {} depts, {} posts, {} roles, {} menus, {} role-menu links, {} dict rows created",
         len(depts),
         len(posts),
         len(roles),
         len(menus),
         links,
+        dict_rows,
     )
     print()
     print("Seeded accounts (change these before any real deployment):")

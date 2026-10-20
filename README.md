@@ -47,7 +47,7 @@ enterprise-admin/
 │  │  └─ middlewares/        request-id
 │  ├─ alembic/               迁移
 │  ├─ scripts/seed_data.py   幂等种子数据
-│  └─ tests/                 294 个测试
+│  └─ tests/                 309 个测试
 ├─ frontend/                 Vue 3 应用
 │  └─ src/
 │     ├─ api/  stores/  router/  layout/  directives/  types/  utils/  views/
@@ -259,7 +259,7 @@ PowerShell 5.1 会把含点的紧凑短选项切开。用 `--host=127.0.0.1` 或
 | [设计文档](docs/superpowers/specs/2026-10-17-enterprise-admin-design.md) | 全景设计：架构、数据模型、四层权限、接口规范、分期计划、风险与取舍 |
 | [P0 实施计划](docs/superpowers/plans/2026-10-17-p0-foundation-and-login.md) | P0 的 17 个任务与逐步验收方式 |
 | [P1-A 实施计划](docs/superpowers/plans/2026-10-17-p1a-data-scope-and-rbac-crud.md) | 数据权限 + 组织与权限 CRUD（部门/岗位/菜单/角色/用户），即成功标准 S2 所需的最小完整切片 |
-| [P1 验收记录](docs/P1验收记录.md) | 294 + 40 项测试的逐文件清单、**50 条接口的权威清单**、八个页面的浏览器实测、S2 三角色对照与截图、以及未覆盖范围的逐条声明 |
+| [P1 验收记录](docs/P1验收记录.md) | 309 + 40 项测试的逐文件清单、**61 条接口的权威清单**、九个页面的浏览器实测、S2 三角色对照与截图、以及未覆盖范围的逐条声明 |
 | [P0 验收记录](docs/P0验收记录.md) | 测试清单与数量、S1 冷启动与浏览器验收证据、Review Focus 逐条覆盖、D 盘审计、独立评审与修复轮 |
 | [P0 决策记录](docs/P0决策记录.md) | 全部实施裁定（决定 → 为什么 → 判断错误时的代价）+ 未修遗留问题清单 |
 | [P1 决策记录](docs/P1决策记录.md) | P1-A 各任务的裁定（数据权限并集语义、失败关闭、自锁守卫等）+ 实施中发现的自身缺陷 |
