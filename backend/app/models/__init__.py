@@ -7,6 +7,7 @@ only know about classes that have actually been imported.
 
 from app.models.associations import SysRoleDept, SysRoleMenu, SysUserPost, SysUserRole
 from app.models.dept import SysDept
+from app.models.dict import SysDictData, SysDictType
 from app.models.login_log import SysLoginLog
 from app.models.menu import SysMenu
 from app.models.oper_log import SysOperLog
@@ -17,6 +18,8 @@ from app.models.user import SysUser
 
 __all__ = [
     "SysDept",
+    "SysDictData",
+    "SysDictType",
     "SysLoginLog",
     "SysMenu",
     "SysOperLog",
