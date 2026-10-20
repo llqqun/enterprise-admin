@@ -28,3 +28,22 @@ export function getProfile(): Promise<ProfileResult> {
 export function getRouters(): Promise<RouterItem[]> {
   return request.get<RouterItem[]>('/auth/routers')
 }
+
+/** 只包含昵称/邮箱/手机/性别 —— 其余字段是管理动作，走 /system/user。 */
+export interface ProfilePatch {
+  nick_name: string
+  email: string | null
+  phonenumber: string | null
+  sex: string | null
+}
+
+export function updateProfile(data: ProfilePatch): Promise<ProfileResult['user']> {
+  return request.put<ProfileResult['user']>('/auth/profile', data)
+}
+
+export function changePassword(data: {
+  old_password: string
+  new_password: string
+}): Promise<{ revoked_sessions: number }> {
+  return request.put<{ revoked_sessions: number }>('/auth/password', data)
+}

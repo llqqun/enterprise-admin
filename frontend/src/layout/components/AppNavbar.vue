@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { useAppStore } from '@/stores/app'
 import { useTagsViewStore } from '@/stores/tagsView'
 import { useUserStore } from '@/stores/user'
+import ProfileDialog from './ProfileDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -19,6 +20,8 @@ const breadcrumbs = computed(() =>
 )
 
 const displayName = computed(() => user.profile?.nick_name ?? user.profile?.user_name ?? '未登录')
+
+const profileVisible = ref(false)
 
 async function handleLogout(): Promise<void> {
   await user.logout()
@@ -60,11 +63,14 @@ async function handleLogout(): Promise<void> {
             <el-dropdown-item disabled>
               角色：{{ user.roles.join('、') || '无' }}
             </el-dropdown-item>
-            <el-dropdown-item divided @click="handleLogout">退出登录</el-dropdown-item>
+            <el-dropdown-item divided @click="profileVisible = true">个人中心</el-dropdown-item>
+            <el-dropdown-item @click="handleLogout">退出登录</el-dropdown-item>
           </el-dropdown-menu>
         </template>
       </el-dropdown>
     </div>
+
+    <ProfileDialog v-model="profileVisible" />
   </div>
 </template>
 

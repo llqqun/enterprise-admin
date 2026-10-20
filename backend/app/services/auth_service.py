@@ -3,7 +3,7 @@
 import uuid
 from datetime import timedelta
 from functools import lru_cache
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -300,3 +300,73 @@ async def revoke_by_access_jti(db: AsyncSession, access_jti: str) -> None:
         return
     record.revoked = True
     await db.flush()
+
+
+# ---------------------------------------------------------------------------
+# 改自己的资料 / 改自己的密码
+# ---------------------------------------------------------------------------
+
+
+async def _load_self(db: AsyncSession, current: "CurrentUser") -> SysUser:
+    user = await db.scalar(select(SysUser).where(SysUser.user_id == current.user_id))
+    if user is None:
+        # 令牌有效但账号已经没了：与其它会话失效的情况给同一条消息。
+        raise UnauthorizedException("登录状态已失效，请重新登录")
+    return user
+
+
+async def update_own_profile(db: AsyncSession, current: "CurrentUser", payload: Any) -> SysUser:
+    """只改 `ProfileUpdate` 里列出的字段。
+
+    这个函数刻意不接受 `user_name` / `status` / `dept_id` / 角色 —— 那些是管理动作，
+    走 `PUT /system/user` 并由 `system:user:edit` 保护。在这里放开任何一项都等于给了
+    每个登录用户一个提权入口。
+    """
+    user = await _load_self(db, current)
+    # 「没传」与「传了 null」含义不同：前者是不改，后者是清空。
+    # 用 `model_fields_set` 区分它们，否则一个只想改昵称的请求会把邮箱顺手清掉。
+    provided = payload.model_fields_set
+    user.nick_name = payload.nick_name
+    if "email" in provided:
+        user.email = payload.email
+    if "phonenumber" in provided:
+        user.phonenumber = payload.phonenumber
+    if "sex" in provided and payload.sex is not None:
+        # `sys_user.sex` 是 NOT NULL，清空它不是合法请求；传 null 视为不改。
+        user.sex = payload.sex
+    await db.flush()
+    await db.refresh(user)
+    return user
+
+
+async def change_own_password(db: AsyncSession, current: "CurrentUser", payload: Any) -> int:
+    """改密码，并让**除当前会话之外**的所有会话失效。返回被撤销的会话数。
+
+    为什么要求原密码：不要求的话，一个被劫持的已登录会话就能把账号锁成自己的。
+    为什么撤销其它会话：改密码最常见的动机就是「旧密码可能已经泄露」，那时把别人留在
+    登录态里，改密码就白改了。
+    """
+    user = await _load_self(db, current)
+
+    if not verify_password(payload.old_password, user.password):
+        raise BusinessException("原密码不正确")
+    if payload.old_password == payload.new_password:
+        raise BusinessException("新密码不能与原密码相同")
+
+    user.password = hash_password(payload.new_password)
+    user.pwd_update_date = utcnow()
+
+    others = list(
+        await db.scalars(
+            select(SysUserToken).where(
+                SysUserToken.user_id == user.user_id,
+                SysUserToken.access_jti != current.access_jti,
+                SysUserToken.revoked.is_(False),
+            )
+        )
+    )
+    for record in others:
+        record.revoked = True
+
+    await db.flush()
+    return len(others)

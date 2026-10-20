@@ -66,3 +66,29 @@ class ProfileResponse(BaseModel):
     user: UserProfile
     roles: list[str]
     permissions: list[str]
+
+
+class ProfileUpdate(BaseModel):
+    """用户能改的**自己的**字段。
+
+    刻意不包含：`user_name`（登录身份）、`status`（谁能用这个账号）、`dept_id`（决定数据权限的
+    可见范围）、以及任何角色/岗位字段。把它们放进来就是一个越权漏洞 —— 普通用户可以把一个
+    被停用的账号自己启用、把自己挪进别的部门（数据权限随之扩大）、或者给自己加角色。
+    """
+
+    nick_name: str = Field(min_length=1, max_length=30)
+    email: str | None = Field(default=None, max_length=50)
+    phonenumber: str | None = Field(default=None, max_length=11)
+    sex: str | None = Field(default=None, pattern="^[012]$")
+
+
+class PasswordChange(BaseModel):
+    old_password: str = Field(min_length=1, max_length=200)
+    new_password: str = Field(min_length=6, max_length=200)
+
+    @field_validator("new_password")
+    @classmethod
+    def _reject_over_long_password(cls, value: str) -> str:
+        if len(value.encode("utf-8")) > BCRYPT_MAX_BYTES:
+            raise ValueError(f"新密码不能超过 {BCRYPT_MAX_BYTES} 字节")
+        return value
