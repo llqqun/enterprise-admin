@@ -133,6 +133,12 @@ async def _issue_tokens(
     )
 
     now = utcnow()
+    # 顺手清掉这个账号已经彻底失效的会话行：表从 P0 起只增不减，
+    # 而按用户清理是有界的（一次登录最多删掉该账号的旧行），不需要后台任务。
+    from app.services.online_service import purge_dead_sessions
+
+    await purge_dead_sessions(db, user.user_id)
+
     db.add(
         SysUserToken(
             user_id=user.user_id,
