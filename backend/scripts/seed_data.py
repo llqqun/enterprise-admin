@@ -96,6 +96,7 @@ MENUS: list[tuple[str, str, str, int, str, str | None, str | None, str | None, s
     ("system_notice", "通知公告", "system", 8, "C", "notice", "system/notice/index", "SystemNotice", "system:notice:list", "Bell"),
     ("monitor", "监控中心", "", 2, "M", "/monitor", None, "Monitor", None, "Monitor"),
     ("monitor_operlog", "操作日志", "monitor", 1, "C", "operlog", "monitor/operlog/index", "MonitorOperlog", "monitor:operlog:list", "Document"),
+    ("monitor_operlog_remove", "操作日志删除", "monitor_operlog", 1, "F", None, None, None, "monitor:operlog:remove", None),
     ("monitor_loginlog", "登录日志", "monitor", 2, "C", "loginlog", "monitor/loginlog/index", "MonitorLoginlog", "monitor:loginlog:list", "List"),
     ("monitor_online", "在线用户", "monitor", 3, "C", "online", "monitor/online/index", "MonitorOnline", "monitor:online:list", "Connection"),
     ("monitor_file", "文件管理", "monitor", 4, "C", "file", "monitor/file/index", "MonitorFile", "monitor:file:list", "Upload"),

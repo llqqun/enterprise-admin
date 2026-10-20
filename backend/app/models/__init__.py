@@ -9,6 +9,7 @@ from app.models.associations import SysRoleDept, SysRoleMenu, SysUserPost, SysUs
 from app.models.dept import SysDept
 from app.models.login_log import SysLoginLog
 from app.models.menu import SysMenu
+from app.models.oper_log import SysOperLog
 from app.models.post import SysPost
 from app.models.role import SysRole
 from app.models.token import SysUserToken
@@ -18,6 +19,7 @@ __all__ = [
     "SysDept",
     "SysLoginLog",
     "SysMenu",
+    "SysOperLog",
     "SysPost",
     "SysRole",
     "SysRoleDept",

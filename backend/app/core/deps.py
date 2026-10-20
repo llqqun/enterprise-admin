@@ -104,7 +104,7 @@ async def get_current_user(
     is_admin = ADMIN_ROLE_KEY in role_keys
     perms = {WILDCARD_PERM} if is_admin else _permission_codes(user)
 
-    return CurrentUser(
+    current = CurrentUser(
         user_id=user.user_id,
         user_name=user.user_name,
         dept_id=user.dept_id,
@@ -115,6 +115,10 @@ async def get_current_user(
             user.roles, user_id=user.user_id, dept_id=user.dept_id, is_admin=is_admin
         ),
     )
+    # 挂到 request.state 上，让「不在接口签名里」的代码（审计装饰器等）也能拿到调用者。
+    # 否则每个要记审计的写接口都得为了取个用户名而显式声明一遍 CurrentUser 参数。
+    request.state.current_user = current
+    return current
 
 
 def require_perm(perm: str) -> Callable[..., Awaitable[CurrentUser]]:

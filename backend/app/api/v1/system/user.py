@@ -5,9 +5,10 @@
 
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.constants import BusinessType
 from app.core.deps import CurrentUser, get_current_user, require_perm
 from app.core.response import PageParams, page, success
 from app.db.session import get_db
@@ -19,6 +20,7 @@ from app.schemas.system import (
     UserUpdate,
 )
 from app.services import user_service
+from app.services.oper_log_service import oper_log
 
 router = APIRouter(prefix="/user", tags=["system:user"])
 
@@ -52,20 +54,27 @@ def _dump(user: Any) -> dict[str, Any]:
 
 
 @router.post("", dependencies=[Depends(require_perm("system:user:add"))], summary="新增用户")
-async def create_user(payload: UserCreate, db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+@oper_log("用户管理", BusinessType.INSERT)
+async def create_user(
+    payload: UserCreate, request: Request, db: AsyncSession = Depends(get_db)
+) -> dict[str, Any]:
     return success(_dump(await user_service.create_user(db, payload)), msg="新增成功")
 
 
 @router.put("", dependencies=[Depends(require_perm("system:user:edit"))], summary="修改用户")
-async def update_user(payload: UserUpdate, db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+@oper_log("用户管理", BusinessType.UPDATE)
+async def update_user(
+    payload: UserUpdate, request: Request, db: AsyncSession = Depends(get_db)
+) -> dict[str, Any]:
     return success(_dump(await user_service.update_user(db, payload)), msg="修改成功")
 
 
 @router.put(
     "/resetPwd", dependencies=[Depends(require_perm("system:user:edit"))], summary="重置密码"
 )
+@oper_log("用户管理", BusinessType.UPDATE)
 async def reset_password(
-    payload: UserResetPwd, db: AsyncSession = Depends(get_db)
+    payload: UserResetPwd, request: Request, db: AsyncSession = Depends(get_db)
 ) -> dict[str, Any]:
     await user_service.reset_password(db, payload.user_id, payload.password)
     return success(msg="重置成功")
@@ -74,8 +83,10 @@ async def reset_password(
 @router.put(
     "/changeStatus", dependencies=[Depends(require_perm("system:user:edit"))], summary="启用/停用"
 )
+@oper_log("用户管理", BusinessType.UPDATE)
 async def change_status(
     payload: UserStatusChange,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current: CurrentUser = Depends(get_current_user),
 ) -> dict[str, Any]:
@@ -86,8 +97,10 @@ async def change_status(
 @router.delete(
     "/{ids}", dependencies=[Depends(require_perm("system:user:remove"))], summary="删除用户"
 )
+@oper_log("用户管理", BusinessType.DELETE)
 async def delete_users(
     ids: str,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current: CurrentUser = Depends(get_current_user),
 ) -> dict[str, Any]:

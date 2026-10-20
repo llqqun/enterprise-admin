@@ -34,3 +34,22 @@ class LoginLogOut(ORMModel):
     status: str
     msg: str
     login_time: datetime
+
+
+class OperLogOut(ORMModel):
+    oper_id: int
+    title: str
+    business_type: int
+    method: str
+    request_method: str
+    oper_name: str
+    dept_name: str
+    oper_url: str
+    oper_ip: str
+    oper_location: str
+    oper_param: str | None = None
+    json_result: str | None = None
+    status: str
+    error_msg: str | None = None
+    cost_ms: int
+    oper_time: datetime
