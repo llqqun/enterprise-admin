@@ -21,6 +21,7 @@ from app.core.logging import setup_logging
 from app.core.security import hash_password
 from app.db.session import AsyncSessionLocal
 from app.models.associations import SysRoleMenu, SysUserPost, SysUserRole
+from app.models.config import SysConfig
 from app.models.dept import SysDept
 from app.models.dict import SysDictData, SysDictType
 from app.models.menu import SysMenu
@@ -98,6 +99,10 @@ MENUS: list[tuple[str, str, str, int, str, str | None, str | None, str | None, s
     ("system_dict_edit", "字典修改", "system_dict", 2, "F", None, None, None, "system:dict:edit", None),
     ("system_dict_remove", "字典删除", "system_dict", 3, "F", None, None, None, "system:dict:remove", None),
     ("system_config", "参数设置", "system", 7, "C", "config", "system/config/index", "SystemConfig", "system:config:list", "Edit"),
+    ("system_config_query", "参数查询", "system_config", 0, "F", None, None, None, "system:config:query", None),
+    ("system_config_add", "参数新增", "system_config", 1, "F", None, None, None, "system:config:add", None),
+    ("system_config_edit", "参数修改", "system_config", 2, "F", None, None, None, "system:config:edit", None),
+    ("system_config_remove", "参数删除", "system_config", 3, "F", None, None, None, "system:config:remove", None),
     ("system_notice", "通知公告", "system", 8, "C", "notice", "system/notice/index", "SystemNotice", "system:notice:list", "Bell"),
     ("monitor", "监控中心", "", 2, "M", "/monitor", None, "Monitor", None, "Monitor"),
     ("monitor_operlog", "操作日志", "monitor", 1, "C", "operlog", "monitor/operlog/index", "MonitorOperlog", "monitor:operlog:list", "Document"),
@@ -143,6 +148,14 @@ DICTS: list[tuple[str, str, list[tuple[str, str, int, str]]]] = [
         "是否",
         [("是", "Y", 1, "success"), ("否", "N", 2, "info")],
     ),
+]
+
+#: 内置参数：(config_key, config_name, config_value, is_builtin)。
+#: 内置的含义是「不可删除」——删掉一个键不会关闭什么，只会让读取方落到兜底值。
+CONFIGS: list[tuple[str, str, str, bool]] = [
+    ("sys.account.captchaEnabled", "登录验证码开关", "true", True),
+    ("sys.account.registerEnabled", "账号注册开关", "false", True),
+    ("sys.index.title", "系统标题", "enterprise-admin", True),
 ]
 
 #: Menu keys each role may see. `"*"` means every menu (the superuser).
@@ -439,6 +452,30 @@ async def seed_dicts(db: AsyncSession) -> int:
     return created
 
 
+async def seed_configs(db: AsyncSession) -> int:
+    """内置参数。
+
+    只刷新名称，**不动 `config_value`** —— 一个值一旦被运维改过，重跑种子不该把它改回去。
+    """
+    created = 0
+    for config_key, config_name, config_value, is_builtin in CONFIGS:
+        _, is_new = await _upsert_presentation(
+            db,
+            SysConfig,
+            filters={"config_key": config_key},
+            defaults={
+                "config_name": config_name,
+                "config_value": config_value,
+                "is_builtin": is_builtin,
+            },
+            # 只有名称是可刷新的展示字段；值属于运维的决定。
+            mutable=("config_name",),
+        )
+        created += int(is_new)
+    await db.flush()
+    return created
+
+
 async def main() -> None:
     setup_logging()
     async with AsyncSessionLocal() as db:
@@ -449,16 +486,19 @@ async def main() -> None:
         links = await link_role_menus(db, roles, menus)
         await seed_users(db, depts, roles, posts)
         dict_rows = await seed_dicts(db)
+        config_rows = await seed_configs(db)
         await db.commit()
 
     logger.info(
-        "seed complete: {} depts, {} posts, {} roles, {} menus, {} role-menu links, {} dict rows created",
+        "seed complete: {} depts, {} posts, {} roles, {} menus, {} role-menu links, "
+        "{} dict rows and {} config rows created",
         len(depts),
         len(posts),
         len(roles),
         len(menus),
         links,
         dict_rows,
+        config_rows,
     )
     print()
     print("Seeded accounts (change these before any real deployment):")
