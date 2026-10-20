@@ -47,7 +47,7 @@ enterprise-admin/
 │  │  └─ middlewares/        request-id
 │  ├─ alembic/               迁移
 │  ├─ scripts/seed_data.py   幂等种子数据
-│  └─ tests/                 332 个测试
+│  └─ tests/                 344 个测试
 ├─ frontend/                 Vue 3 应用
 │  └─ src/
 │     ├─ api/  stores/  router/  layout/  directives/  types/  utils/  views/
@@ -259,7 +259,7 @@ PowerShell 5.1 会把含点的紧凑短选项切开。用 `--host=127.0.0.1` 或
 | [设计文档](docs/superpowers/specs/2026-10-17-enterprise-admin-design.md) | 全景设计：架构、数据模型、四层权限、接口规范、分期计划、风险与取舍 |
 | [P0 实施计划](docs/superpowers/plans/2026-10-17-p0-foundation-and-login.md) | P0 的 17 个任务与逐步验收方式 |
 | [P1-A 实施计划](docs/superpowers/plans/2026-10-17-p1a-data-scope-and-rbac-crud.md) | 数据权限 + 组织与权限 CRUD（部门/岗位/菜单/角色/用户），即成功标准 S2 所需的最小完整切片 |
-| [P1 验收记录](docs/P1验收记录.md) | 332 + 40 项测试的逐文件清单、**68 条接口的权威清单**、十一个页面的浏览器实测、S2 三角色对照与截图、以及未覆盖范围的逐条声明 |
+| [P1 验收记录](docs/P1验收记录.md) | 344 + 40 项测试的逐文件清单、**74 条接口的权威清单**、十二个页面的浏览器实测、S2 三角色对照与截图、以及未覆盖范围的逐条声明 |
 | [P0 验收记录](docs/P0验收记录.md) | 测试清单与数量、S1 冷启动与浏览器验收证据、Review Focus 逐条覆盖、D 盘审计、独立评审与修复轮 |
 | [P0 决策记录](docs/P0决策记录.md) | 全部实施裁定（决定 → 为什么 → 判断错误时的代价）+ 未修遗留问题清单 |
 | [P1 决策记录](docs/P1决策记录.md) | P1-A 各任务的裁定（数据权限并集语义、失败关闭、自锁守卫等）+ 实施中发现的自身缺陷 |
@@ -274,6 +274,9 @@ PowerShell 5.1 会把含点的紧凑短选项切开。用 `--host=127.0.0.1` 或
 - **MySQL 8.0.29 而非 8.4 LTS**：8.4 只在官方源提供，国内镜像不可达。功能上完全够用（utf8mb4、
   JSON、递归 CTE、窗口函数）。有容器环境时可换 8.4。
 - **令牌存 `localStorage`**：可被同源脚本读取。生产环境应改为 httpOnly Cookie。
+- **公告正文用 `v-html` 渲染**：正文是管理员录入的富文本，因此**能编辑公告的人就能在本站点执行脚本**。
+  这是富文本公告的固有权衡；若不接受，应改为白名单净化（如 DOMPurify）或只允许 Markdown。
+  当前依赖权限码收紧（`system:notice:edit`）来控制。
 - **不注册 Windows 服务**：默认由脚本拉起 `mysqld` 进程；服务注册会写 C 盘注册表与 `C:\ProgramData`。
   确实需要开机自启时用 `tools/install-mysql.ps1` 后再自行注册。
 - **无代码生成器 / 工作流引擎**：属于独立子项目，列入 Roadmap。

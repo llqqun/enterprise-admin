@@ -25,6 +25,7 @@ from app.models.config import SysConfig
 from app.models.dept import SysDept
 from app.models.dict import SysDictData, SysDictType
 from app.models.menu import SysMenu
+from app.models.notice import SysNotice
 from app.models.post import SysPost
 from app.models.role import SysRole
 from app.models.user import SysUser
@@ -104,6 +105,10 @@ MENUS: list[tuple[str, str, str, int, str, str | None, str | None, str | None, s
     ("system_config_edit", "参数修改", "system_config", 2, "F", None, None, None, "system:config:edit", None),
     ("system_config_remove", "参数删除", "system_config", 3, "F", None, None, None, "system:config:remove", None),
     ("system_notice", "通知公告", "system", 8, "C", "notice", "system/notice/index", "SystemNotice", "system:notice:list", "Bell"),
+    ("system_notice_query", "公告查询", "system_notice", 0, "F", None, None, None, "system:notice:query", None),
+    ("system_notice_add", "公告新增", "system_notice", 1, "F", None, None, None, "system:notice:add", None),
+    ("system_notice_edit", "公告修改", "system_notice", 2, "F", None, None, None, "system:notice:edit", None),
+    ("system_notice_remove", "公告删除", "system_notice", 3, "F", None, None, None, "system:notice:remove", None),
     ("monitor", "监控中心", "", 2, "M", "/monitor", None, "Monitor", None, "Monitor"),
     ("monitor_operlog", "操作日志", "monitor", 1, "C", "operlog", "monitor/operlog/index", "MonitorOperlog", "monitor:operlog:list", "Document"),
     ("monitor_operlog_remove", "操作日志删除", "monitor_operlog", 1, "F", None, None, None, "monitor:operlog:remove", None),
@@ -157,6 +162,23 @@ CONFIGS: list[tuple[str, str, str, bool]] = [
     ("sys.account.captchaEnabled", "登录验证码开关", "true", True),
     ("sys.account.registerEnabled", "账号注册开关", "false", True),
     ("sys.index.title", "系统标题", "enterprise-admin", True),
+]
+
+#: 初始公告：(title, type, content, status)。type 1 通知 / 2 公告；status 0 已发布 / 1 已撤回。
+NOTICES: list[tuple[str, str, str, str]] = [
+    (
+        "欢迎使用 enterprise-admin",
+        "2",
+        "这是一个可现场演示的企业级后台管理平台：RBAC 动态路由、按钮级权限与数据权限均已闭环。"
+        "用 admin / Manager@123456 之类的账号切换登录，可以看到菜单、按钮与可见数据行数随之变化。",
+        "0",
+    ),
+    (
+        "本周六停机维护",
+        "1",
+        "本周六 22:00 起停机维护约两小时，期间系统不可用。",
+        "0",
+    ),
 ]
 
 #: Menu keys each role may see. `"*"` means every menu (the superuser).
@@ -477,6 +499,26 @@ async def seed_configs(db: AsyncSession) -> int:
     return created
 
 
+async def seed_notices(db: AsyncSession) -> int:
+    """初始公告。以标题为业务键，已存在就不再动 —— 有人改过正文或撤回，重跑种子不该覆盖。"""
+    created = 0
+    for notice_title, notice_type, notice_content, status in NOTICES:
+        _, is_new = await _get_or_create(
+            db,
+            SysNotice,
+            filters={"notice_title": notice_title},
+            defaults={
+                "notice_type": notice_type,
+                "notice_content": notice_content,
+                "status": status,
+                "del_flag": "0",
+            },
+        )
+        created += int(is_new)
+    await db.flush()
+    return created
+
+
 async def main() -> None:
     setup_logging()
     async with AsyncSessionLocal() as db:
@@ -488,11 +530,12 @@ async def main() -> None:
         await seed_users(db, depts, roles, posts)
         dict_rows = await seed_dicts(db)
         config_rows = await seed_configs(db)
+        notice_rows = await seed_notices(db)
         await db.commit()
 
     logger.info(
         "seed complete: {} depts, {} posts, {} roles, {} menus, {} role-menu links, "
-        "{} dict rows and {} config rows created",
+        "{} dict rows, {} config rows and {} notices created",
         len(depts),
         len(posts),
         len(roles),
@@ -500,6 +543,7 @@ async def main() -> None:
         links,
         dict_rows,
         config_rows,
+        notice_rows,
     )
     print()
     print("Seeded accounts (change these before any real deployment):")

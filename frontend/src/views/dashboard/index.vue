@@ -6,14 +6,34 @@
  * codes — which makes the RBAC layer visible instead of taking it on faith, and is
  * the quickest way to confirm "this account sees what it should".
  */
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
+import { latestNotices } from '@/api/system/notice'
+import type { NoticeRow } from '@/api/system/notice'
 import { useUserStore } from '@/stores/user'
 
 const user = useUserStore()
 
 const displayName = computed(() => user.profile?.nick_name ?? user.profile?.user_name ?? '未登录')
 const isWildcard = computed(() => user.perms.includes('*:*:*'))
+
+/**
+ * 最新公告。`/system/notice/latest` 只要求登录（普通员工没有 `system:notice:list`），
+ * 而且只返回**已发布**的 —— 撤回的公告出现在首页等于没撤回。
+ * 拉取失败时静默留空：首页的主内容是账号信息，不该因为公告取不到就报错。
+ */
+const notices = ref<NoticeRow[]>([])
+const noticeDialog = ref(false)
+const activeNotice = ref<NoticeRow | null>(null)
+
+function openNotice(row: unknown): void {
+  activeNotice.value = row as NoticeRow
+  noticeDialog.value = true
+}
+
+onMounted(async () => {
+  notices.value = await latestNotices().catch(() => [])
+})
 </script>
 
 <template>
@@ -58,6 +78,29 @@ const isWildcard = computed(() => user.perms.includes('*:*:*'))
         </span>
       </div>
     </el-card>
+
+    <el-card v-if="notices.length" class="dashboard__notices" shadow="never">
+      <template #header>最新公告</template>
+      <ul class="notice-list">
+        <li v-for="item in notices" :key="item.notice_id">
+          <el-tag :type="item.notice_type === '2' ? 'warning' : 'primary'" size="small" disable-transitions>
+            {{ item.notice_type === '2' ? '公告' : '通知' }}
+          </el-tag>
+          <el-button link type="primary" class="notice-list__title" @click="openNotice(item)">
+            {{ item.notice_title }}
+          </el-button>
+          <span class="notice-list__time">{{ item.create_time }}</span>
+        </li>
+      </ul>
+    </el-card>
+
+    <el-dialog v-model="noticeDialog" :title="activeNotice?.notice_title ?? '公告'" width="620px">
+      <!-- 正文是管理员录入的富文本；能编辑公告的人等于能在这个站点执行脚本，见 README 已知取舍 -->
+      <div v-if="activeNotice" class="notice-body" v-html="activeNotice.notice_content" />
+      <template #footer>
+        <el-button @click="noticeDialog = false">关闭</el-button>
+      </template>
+    </el-dialog>
 
     <el-alert
       class="dashboard__note"
