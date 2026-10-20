@@ -111,6 +111,7 @@ MENUS: list[tuple[str, str, str, int, str, str | None, str | None, str | None, s
     ("monitor_online", "在线用户", "monitor", 3, "C", "online", "monitor/online/index", "MonitorOnline", "monitor:online:list", "Connection"),
     ("monitor_online_force", "在线用户强退", "monitor_online", 1, "F", None, None, None, "monitor:online:forceLogout", None),
     ("monitor_file", "文件管理", "monitor", 4, "C", "file", "monitor/file/index", "MonitorFile", "monitor:file:list", "Upload"),
+    ("monitor_server", "服务监控", "monitor", 5, "C", "server", "monitor/server/index", "MonitorServer", "monitor:server:list", "Cpu"),
 ]
 
 #: Menu fields the seeder owns and may refresh on an existing row.
