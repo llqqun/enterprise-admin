@@ -23,6 +23,7 @@
 | 前端框架 | Vue 3 + TypeScript | 3.5 / 6.0 |
 | 构建 | Vite | 8.3 |
 | UI | Element Plus（按需自动导入） | 2.14 |
+| 样式 | SCSS（`sass`）+ 设计变量 / mixin 层 | 1.105 |
 | 状态 / 路由 | Pinia / Vue Router | 4.1 / 5.4 |
 | 测试 | pytest + httpx / Vitest | 9.1 / 4.1 |
 
@@ -51,6 +52,7 @@ enterprise-admin/
 ├─ frontend/                 Vue 3 应用
 │  └─ src/
 │     ├─ api/  stores/  router/  layout/  directives/  types/  utils/  views/
+│     ├─ styles/            SCSS：variables / mixins / element（主题桥）/ index
 │     └─ utils/request.ts    axios 封装 + 单飞刷新
 ├─ tools/                    MySQL 便携版 下载 / 安装 / 启停
 ├─ init.ps1                  一次性：.env + 建库 + 迁移 + 种子数据
@@ -234,7 +236,6 @@ cd backend
 ---
 
 ## 七、关键设计
-
 ### 四层权限
 
 | 层 | 实现 | 位置 |
@@ -269,6 +270,47 @@ cd backend
 
 不引入 Redis。`CacheBackend` 抽象 + 进程内 TTL 实现（验证码、登录失败计数、字典缓存）。
 切换 Redis 只需新增一个实现类并改 `app/core/cache.py` 最后一行。
+
+### 样式（SCSS）
+
+`src/styles/` 分四层，取值只有一处来源：
+
+| 文件 | 职责 |
+|---|---|
+| `variables.scss` | 全部设计变量：品牌色、骨架尺寸、4px 基准的间距刻度、圆角、字号、`z-index` 层级、断点表 |
+| `mixins.scss` | 只放真会重复的东西：`flex` / `flex-between` / `text-ellipsis` / `text-clamp` / `thin-scrollbar` / `card-surface` / `focus-ring` / `respond-to` |
+| `element.scss` | Element Plus 主题桥：把 `$color-primary` 等映射成 `--el-color-*`，**并补出 light/dark 变体** |
+| `index.scss` | 入口：reset、基础排版、路由过渡，并把 tokens 暴露成 `--ea-*` 运行时变量 |
+
+写组件时**不需要 `@use`** —— `vite.config.ts` 的 `css.preprocessorOptions.scss.additionalData`
+会把 `variables` 与 `mixins` 注入每个 `<style lang="scss">` 块：
+
+```vue
+<style scoped lang="scss">
+.navbar {
+  @include flex-between;          // mixin 直接可用
+  padding: 0 $space-4;            // 变量直接可用
+
+  &__user-name {
+    @include text-ellipsis;
+    font-size: $font-size-base;
+  }
+}
+</style>
+```
+
+三条约定：
+
+1. **不要在组件里写裸色值 / 裸间距**。要用的值不在 `variables.scss` 里就先加一个，而不是就地写 `13px`。
+2. **改主题只改 `$color-primary`**。`element.scss` 会据此生成 `--el-color-primary` 与
+   `light-{3,5,7,8,9}` / `dark-2`；只改基础色会让 hover、disabled、浅底仍停在旧色上 ——
+   看起来像配色出了 bug，实际上是真的漏了变体。
+3. **`additionalData` 会跳过 `src/styles/` 下的文件**。它们正是做注入的模块，一个模块
+   `@use` 自己会形成循环依赖。
+
+> 当前 tokens 的取值与 Element Plus 默认值一致，所以接入 SCSS 层**没有改变任何视觉效果**
+> （已在浏览器里逐项比对 `height / justify / align / gap / min-width / font-size / text-overflow`）。
+> 换配色是改一行的事，但那应该是一次显式的改版，而不是顺手带出来的。
 
 代价要说清楚：进程内缓存是单进程的，多 worker 部署时每个 worker 各有一份。这就是该上 Redis 的临界点。
 

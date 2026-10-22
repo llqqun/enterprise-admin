@@ -1,11 +1,37 @@
-/* Global styles: a small reset, layout variables, and the transitions the shell uses. */
+// 全局样式入口（main.ts 里 import 的就是这个文件）。
+//
+// 结构：
+//   variables.scss  设计变量（唯一取值来源）
+//   mixins.scss     可复用 mixin
+//   element.scss    Element Plus 主题桥（--el-color-* 及其变体）
+//   本文件           reset / 基础排版 / 过渡，以及把 tokens 暴露成运行时 CSS 变量
+//
+// 组件里**不需要** @use 这三个文件：vite.config.ts 的 additionalData 会把
+// variables 与 mixins 自动注入每个 <style lang="scss"> 块。
+
+@use 'sass:map';
+@use 'variables' as *;
+@use 'mixins' as *;
+@use 'element' as *;
+
+// ---------------------------------------------------------------------------
+// 把框架尺寸暴露成 CSS 自定义属性：JS（以及内联 style）要读它们，SCSS 变量做不到。
+// ---------------------------------------------------------------------------
 
 :root {
-  --ea-aside-width: 210px;
-  --ea-aside-collapsed-width: 64px;
-  --ea-header-height: 50px;
-  --ea-tags-height: 34px;
+  --ea-aside-width: #{$aside-width};
+  --ea-aside-collapsed-width: #{$aside-collapsed-width};
+  --ea-header-height: #{$header-height};
+  --ea-tags-height: #{$tags-height};
+  --ea-container-padding: #{$app-container-padding};
+
+  // 断点也暴露一份，方便在 JS 里判断，避免在 ts 里重复写魔法数字。
+  --ea-bp-md: #{map.get($breakpoints, md)};
 }
+
+// ---------------------------------------------------------------------------
+// reset 与基础排版
+// ---------------------------------------------------------------------------
 
 * {
   box-sizing: border-box;
@@ -21,9 +47,14 @@ body,
 
 body {
   font-family:
-    'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial,
+    'Helvetica Neue',
+    Helvetica,
+    'PingFang SC',
+    'Hiragino Sans GB',
+    'Microsoft YaHei',
+    Arial,
     sans-serif;
-  font-size: 14px;
+  font-size: $font-size-base;
   color: var(--el-text-color-primary);
   background-color: var(--el-bg-color-page);
   -webkit-font-smoothing: antialiased;
@@ -34,18 +65,35 @@ a {
   text-decoration: none;
 }
 
-/* Collapsed-state transitions for the sidebar. */
-.fade-transform-enter-active,
-.fade-transform-leave-active {
-  transition: all 0.25s;
-}
+// ---------------------------------------------------------------------------
+// 页面容器
+//
+// `.app-container` 被 13 个业务页当作根节点使用，但**至今没有任何样式**。
+// 这里不顺手给它加内边距：那样会一次性改动所有页面的排版，而这件事没有被要求过。
+// 需要统一间距时，用下面的变量显式开启，并重新走一遍视觉验收。
+// ---------------------------------------------------------------------------
 
-.fade-transform-enter-from {
-  opacity: 0;
-  transform: translateX(-12px);
-}
+// .app-container {
+//   padding: var(--ea-container-padding);
+// }
 
-.fade-transform-leave-to {
-  opacity: 0;
-  transform: translateX(12px);
+// ---------------------------------------------------------------------------
+// 路由切换过渡
+// ---------------------------------------------------------------------------
+
+.fade-transform {
+  &-enter-active,
+  &-leave-active {
+    transition: all $transition-base;
+  }
+
+  &-enter-from {
+    opacity: 0;
+    transform: translateX(-#{$space-3});
+  }
+
+  &-leave-to {
+    opacity: 0;
+    transform: translateX($space-3);
+  }
 }

@@ -1,0 +1,134 @@
+// 可复用的 mixin。
+//
+// 只放**真正会重复**的东西。一个只用过一次的 mixin 只是多一层间接，不如直接写 CSS。
+//
+// 用法：组件里不需要 @use，`vite.config.ts` 会自动注入（`as *`）。
+
+@use 'sass:map';
+@use 'variables' as *;
+
+// ---------------------------------------------------------------------------
+// 布局
+// ---------------------------------------------------------------------------
+
+/// flex 的常用组合。$gap 用 0 表示不设置。
+///
+/// `$align` 默认 **center** 而不是 stretch：横向排列里绝大多数场景要的是垂直居中，
+/// 而默认 stretch 会静默改变行内元素的对齐 —— 这个默认值是被一次真实的回归逼出来的
+/// （`@include flex($gap: 6px)` 把原本的 `align-items: center` 换成了 `stretch`）。
+@mixin flex($direction: row, $justify: flex-start, $align: center, $gap: 0) {
+  display: flex;
+  flex-direction: $direction;
+  justify-content: $justify;
+  align-items: $align;
+
+  @if $gap != 0 {
+    gap: $gap;
+  }
+}
+
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/// 让 flex 子项可以真的收缩。
+///
+/// 不加 `min-width: 0` 时，flex 项的自动最小尺寸是内容的 min-content 宽度，
+/// 于是长文本（尤其 `white-space: nowrap` 的）会把固定宽度的栏自己撑开。
+@mixin flex-shrinkable {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+// ---------------------------------------------------------------------------
+// 文本
+// ---------------------------------------------------------------------------
+
+/// 单行省略。
+@mixin text-ellipsis {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/// 多行省略（$lines >= 2）。用的是 -webkit-box，各浏览器表现一致。
+@mixin text-clamp($lines: 2) {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: $lines;
+  line-clamp: $lines;
+  overflow: hidden;
+}
+
+// ---------------------------------------------------------------------------
+// 外观
+// ---------------------------------------------------------------------------
+
+/// 细滚动条（侧边栏、抽屉里长列表用）。
+@mixin thin-scrollbar($size: 6px) {
+  &::-webkit-scrollbar {
+    width: $size;
+    height: $size;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--el-border-color);
+    border-radius: $radius-sm;
+
+    &:hover {
+      background-color: var(--el-border-color-darker);
+    }
+  }
+
+  &::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
+}
+
+/// 卡片式表面（白底 + 圆角 + 细边），用来统一各处自绘面板的外观。
+@mixin card-surface($padding: $space-4) {
+  padding: $padding;
+  background-color: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: $radius-md;
+}
+
+/// 键盘焦点环。只在 :focus-visible 上用，鼠标点击不出现。
+@mixin focus-ring($color: var(--el-color-primary)) {
+  outline: 2px solid $color;
+  outline-offset: 2px;
+}
+
+// ---------------------------------------------------------------------------
+// 响应式
+// ---------------------------------------------------------------------------
+
+/// 移动优先的上行断点：`@include respond-to(md) { ... }` = 宽度 >= 768px。
+@mixin respond-to($name) {
+  @if not map.has-key($breakpoints, $name) {
+    @error '未知断点 `#{$name}`，可选：#{$breakpoints}';
+  }
+
+  @media (min-width: map.get($breakpoints, $name)) {
+    @content;
+  }
+}
+
+/// 下行断点：`@include respond-below(md) { ... }` = 宽度 < 768px。
+@mixin respond-below($name) {
+  @if not map.has-key($breakpoints, $name) {
+    @error '未知断点 `#{$name}`，可选：#{$breakpoints}';
+  }
+
+  @media (max-width: (map.get($breakpoints, $name) - 0.02px)) {
+    @content;
+  }
+}

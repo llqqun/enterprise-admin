@@ -32,6 +32,20 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  css: {
+    preprocessorOptions: {
+      scss: {
+        // Design tokens and mixins are injected into every <style lang="scss">
+        // block, so a component can use `$space-3` or `@include text-ellipsis`
+        // without a @use line. Files under src/styles/ are skipped: they are the
+        // modules doing the injecting, and a module cannot @use itself.
+        additionalData: (source: string, filename: string) =>
+          filename.replace(/\\/g, '/').includes('/src/styles/')
+            ? source
+            : `@use "@/styles/variables" as *;\n@use "@/styles/mixins" as *;\n${source}`,
+      },
+    },
+  },
   server: {
     host: '127.0.0.1',
     port: 5173,

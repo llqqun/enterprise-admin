@@ -1,0 +1,39 @@
+// Element Plus 主题桥。
+//
+// Element Plus 2.x 用 CSS 变量驱动外观，所以不需要引入它的 SCSS 源码（那会显著拖慢构建，
+// 也和我们按需引入的 CSS 冲突）。这里把 variables.scss 里的品牌色映射成 `--el-color-*`，
+// 并**补出 light/dark 变体** —— 只改基础色不生成变体，是常见错误：
+// 主按钮的颜色会变，但 hover / disabled / 浅色背景仍停在旧色上，看起来像配色出了 bug。
+//
+// 当前取值与 Element Plus 默认值一致，因此接入后界面没有视觉变化。换主题时只改
+// variables.scss 里的 $color-primary，这里的变体会自动跟着生成。
+
+@use 'sass:color';
+@use 'variables' as *;
+
+$palette: (
+  primary: $color-primary,
+  success: $color-success,
+  warning: $color-warning,
+  danger: $color-danger,
+  info: $color-info,
+);
+
+// 与 Element Plus 自身一致的变体档位。
+$light-steps: (3, 5, 7, 8, 9);
+
+:root {
+  @each $name, $color in $palette {
+    --el-color-#{$name}: #{$color};
+
+    @each $step in $light-steps {
+      // light-3 = 30% 白 + 70% 原色，与 Element Plus 的算法同义。
+      --el-color-#{$name}-light-#{$step}: #{color.mix(#fff, $color, $step * 10%)};
+    }
+
+    --el-color-#{$name}-dark-2: #{color.mix(#000, $color, 20%)};
+  }
+
+  // 圆角与 EP 默认一致（4px），集中在这里以后不用去各组件里找。
+  --el-border-radius-base: #{$radius-sm};
+}

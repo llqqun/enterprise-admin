@@ -74,47 +74,47 @@ async function handleLogout(): Promise<void> {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
+// 这个块用到了 variables.scss 与 mixins.scss 里的一切，但**没有一行 @use** ——
+// 它们由 vite.config.ts 的 additionalData 自动注入。这就是 SCSS 工具链接通的证据。
 .navbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  @include flex-between;
+
   height: var(--ea-header-height);
-  padding: 0 16px;
+  padding: 0 $space-4;
   background-color: var(--el-bg-color);
   border-bottom: 1px solid var(--el-border-color-lighter);
-}
 
-.navbar__left,
-.navbar__right {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  min-width: 0;
-}
+  &__left,
+  &__right {
+    @include flex($align: center, $gap: $space-4);
 
-.navbar__toggle,
-.navbar__action {
-  font-size: 18px;
-  cursor: pointer;
-  color: var(--el-text-color-regular);
-}
+    min-width: 0;
+  }
 
-.navbar__toggle:hover,
-.navbar__action:hover {
-  color: var(--el-color-primary);
-}
+  &__toggle,
+  &__action {
+    font-size: 18px;
+    color: var(--el-text-color-regular);
+    cursor: pointer;
 
-.navbar__user {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  outline: none;
-}
+    &:hover {
+      color: var(--el-color-primary);
+    }
+  }
 
-.navbar__user-name {
-  font-size: 14px;
-  color: var(--el-text-color-regular);
+  &__user {
+    @include flex($align: center, $gap: 6px);
+
+    cursor: pointer;
+    outline: none;
+  }
+
+  &__user-name {
+    @include text-ellipsis;
+
+    font-size: $font-size-base;
+    color: var(--el-text-color-regular);
+  }
 }
 </style>
