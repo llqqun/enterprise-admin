@@ -47,15 +47,17 @@ enterprise-admin/
 │  │  └─ middlewares/        request-id
 │  ├─ alembic/               迁移
 │  ├─ scripts/seed_data.py   幂等种子数据
-│  └─ tests/                 368 个测试
+│  └─ tests/                 373 个测试
 ├─ frontend/                 Vue 3 应用
 │  └─ src/
 │     ├─ api/  stores/  router/  layout/  directives/  types/  utils/  views/
 │     └─ utils/request.ts    axios 封装 + 单飞刷新
 ├─ tools/                    MySQL 便携版 下载 / 安装 / 启停
 ├─ init.ps1                  一次性：.env + 建库 + 迁移 + 种子数据
-├─ start.ps1                 启动 MySQL + 后端 + 前端
-├─ stop.ps1                  停止（-IncludeMysql 连库一起停）
+├─ start.ps1                 启动 MySQL + 后端 + 前端（支持 -Only 单独启动）
+├─ stop.ps1                  停止（支持 -Only 单独停止）
+├─ status.ps1                查看三个服务的状态（不启不停）
+├─ db.ps1                    脱离后端单独管理数据库（状态/命令行/查询/备份/恢复）
 └─ docs/                     设计文档、实施计划、架构与验收记录
 ```
 
@@ -126,13 +128,84 @@ powershell -ExecutionPolicy Bypass -File stop.ps1
 | 账号 | 密码 | 角色 | 登录后可见 |
 |---|---|---|---|
 | `admin` | `Admin@123456` | 超级管理员 | 全部菜单，权限码 `*:*:*` |
-| `manager` | `Manager@123` | 部门主管 | 用户管理 + 在线用户（**仅菜单级差异**；角色的 `data_scope=4` 目前不参与查询，见下方「已知取舍」） |
+| `manager` | `Manager@123` | 部门主管 | 用户管理 + 在线用户；数据权限生效，**只看到本部门的 2 行**（admin 能看到 4 行） |
 | `staff` | `Staff@123` | 普通员工 | **无任何菜单** —— 侧边栏为空是预期行为 |
 | `nobody` | `Nobody@123` | 无菜单角色 | 同上 |
 
 `staff` 与 `nobody` 的空白侧边栏是刻意保留的：它是「无权限用户不应报错、不应白屏」这条要求的活体样本。
 
 > 部署到任何真实环境前，请先改掉这些账号密码，并在 `.env` 中重新生成 `SECRET_KEY`。
+
+### 分别启动 / 单个停止
+
+三个服务可以完全独立启停。`-Only` 指的就是「**只动这一个，别的一律不碰**」。
+
+```powershell
+# 只起数据库（后端、前端都不动）
+powershell -ExecutionPolicy Bypass -File start.ps1 -Only db
+
+# 只起后端（不会去启动 MySQL —— 数据库停着它也能起来，首次查询时才报错）
+powershell -ExecutionPolicy Bypass -File start.ps1 -Only backend
+
+# 只起前端
+powershell -ExecutionPolicy Bypass -File start.ps1 -Only frontend
+
+# 只停一个
+powershell -ExecutionPolicy Bypass -File stop.ps1 -Only backend
+powershell -ExecutionPolicy Bypass -File stop.ps1 -Only frontend
+powershell -ExecutionPolicy Bypass -File stop.ps1 -Only db
+```
+
+改端口同理：`start.ps1 -Only backend -BackendPort 8100`（记得同步 `frontend/vite.config.ts` 的代理目标）。
+
+### 状态与日志
+
+```powershell
+# 三个服务的端口 / PID / /health / 数据库连通性，一行一个
+powershell -ExecutionPolicy Bypass -File status.ps1
+
+# 再顺带打印后端日志的最后 30 行（后端跑在独立窗口里，不用切过去看）
+powershell -ExecutionPolicy Bypass -File status.ps1 -Logs
+```
+
+后端日志按天落在 `backend/logs/backend-YYYY-MM-DD.log`（保留 30 天）。
+
+### 数据库单独管理（不经过后端）
+
+```powershell
+# 进程 / 端口 / 版本 / 表数量 / 库体积
+powershell -ExecutionPolicy Bypass -File db.ps1
+
+# 新窗口打开 mysql 交互命令行
+powershell -ExecutionPolicy Bypass -File db.ps1 -Action console
+
+# 跑一条查询（表格输出）
+powershell -ExecutionPolicy Bypass -File db.ps1 -Action query -Sql "SELECT user_id, user_name FROM sys_user"
+
+# 列出所有库 / 备份 / 恢复
+powershell -ExecutionPolicy Bypass -File db.ps1 -Action databases
+powershell -ExecutionPolicy Bypass -File db.ps1 -Action backup
+powershell -ExecutionPolicy Bypass -File db.ps1 -Action restore -File D:\devtools\mysql-backups\enterprise_admin-20261022-110423.sql
+```
+
+备份落在 `D:\devtools\mysql-backups\`（`mysqldump --single-transaction`，不锁表，
+备份期间后端照常读写）。
+
+### 「单独重启数据库」会发生什么（已实测）
+
+这是最容易踩坑的一步，所以实测过：
+
+| 步骤 | 结果 |
+|---|---|
+| MySQL 运行中，带 token 请求 `/system/user` | `200`，4 行 |
+| 只停 MySQL（`stop.ps1 -Only db`），同一 token 再请求 | **`503`「数据库暂时不可用，请稍后重试」** |
+| 只起 MySQL（`start.ps1 -Only db`），**后端不重启**，同一 token 再请求 | `200`，4 行 —— **无需重新登录** |
+
+原因是连接池开了 `pool_pre_ping=True`：每条连接出池前会先探活，死连接被丢弃重建。
+所以数据库维护/重启**不需要重启后端**，用户也不会被踢出登录态。
+
+> 数据库连不上时返回 `503` 而不是 `500`（写错的 SQL 仍是 `500`）：
+> 前者是「稍后重试」，后者是「必须有人修」，两者的重试策略与告警完全不同。
 
 ---
 
@@ -259,7 +332,7 @@ PowerShell 5.1 会把含点的紧凑短选项切开。用 `--host=127.0.0.1` 或
 | [设计文档](docs/superpowers/specs/2026-10-17-enterprise-admin-design.md) | 全景设计：架构、数据模型、四层权限、接口规范、分期计划、风险与取舍 |
 | [P0 实施计划](docs/superpowers/plans/2026-10-17-p0-foundation-and-login.md) | P0 的 17 个任务与逐步验收方式 |
 | [P1-A 实施计划](docs/superpowers/plans/2026-10-17-p1a-data-scope-and-rbac-crud.md) | 数据权限 + 组织与权限 CRUD（部门/岗位/菜单/角色/用户），即成功标准 S2 所需的最小完整切片 |
-| [P1 验收记录](docs/P1验收记录.md) | 368 + 40 项测试的逐文件清单、**80 条接口的权威清单**、十四个页面的浏览器实测、S2 三角色对照与截图、以及未覆盖范围的逐条声明 |
+| [P1 验收记录](docs/P1验收记录.md) | 373 + 40 项测试的逐文件清单、**80 条接口的权威清单**、十四个页面的浏览器实测、S2 三角色对照与截图、以及未覆盖范围的逐条声明 |
 | [P0 验收记录](docs/P0验收记录.md) | 测试清单与数量、S1 冷启动与浏览器验收证据、Review Focus 逐条覆盖、D 盘审计、独立评审与修复轮 |
 | [P0 决策记录](docs/P0决策记录.md) | 全部实施裁定（决定 → 为什么 → 判断错误时的代价）+ 未修遗留问题清单 |
 | [P1 决策记录](docs/P1决策记录.md) | P1-A 各任务的裁定（数据权限并集语义、失败关闭、自锁守卫等）+ 实施中发现的自身缺陷 |

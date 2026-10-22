@@ -11,9 +11,14 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from loguru import logger
+from sqlalchemy.exc import InterfaceError, OperationalError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 GENERIC_ERROR_MSG = "系统内部错误，请稍后重试"
+
+#: 「依赖不可用」不是「服务内部出错」。数据库维护/重启期间，客户端应该拿到一个明确
+#: 的「稍后重试」（503），而不是一个未解释的 500 —— 两者在重试策略与告警上完全不同。
+DB_UNAVAILABLE_MSG = "数据库暂时不可用，请稍后重试"
 
 
 class AppException(Exception):
@@ -126,3 +131,27 @@ def register_exception_handlers(app: FastAPI) -> None:
             status_code=500,
             content={"code": 500, "msg": GENERIC_ERROR_MSG, "data": None},
         )
+
+    async def _handle_db_unavailable(request: Request, exc: Exception) -> JSONResponse:
+        """数据库连不上 / 连接被对端关掉 -> 503。
+
+        `OperationalError` 与 `InterfaceError` 是「连不上」与「连接断了」这两类的父类：
+        MySQL 停机、重启、`wait_timeout` 掐断连接都会走到这里。它不是程序 bug，
+        所以不该报 500，也不该让客户端以为请求本身有问题 —— 重试就行。
+
+        `ProgrammingError`（写错的 SQL）故意**不**在这里：那是 500，属于必须有人修的错。
+        """
+        request_id = getattr(request.state, "request_id", "-")
+        logger.opt(exception=exc).error(
+            "Database unavailable [request_id={}] {} {}",
+            request_id,
+            request.method,
+            request.url.path,
+        )
+        return JSONResponse(
+            status_code=503,
+            content={"code": 503, "msg": DB_UNAVAILABLE_MSG, "data": None},
+        )
+
+    for _exc_type in (OperationalError, InterfaceError):
+        app.add_exception_handler(_exc_type, _handle_db_unavailable)
