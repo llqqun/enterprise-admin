@@ -17,10 +17,33 @@ export const NOT_FOUND_ROUTE_NAME = 'NotFoundCatchAll'
 
 const FALLBACK_VIEW = () => import('@/views/error/404.vue')
 
-function resolveComponent(component: string): RouteRecordRaw['component'] {
+/**
+ * 让加载出来的组件带上**路由名**。
+ *
+ * `<keep-alive :include>` 匹配的是**组件名**，不是路由名。这里的每个页面文件都叫
+ * `index.vue`，SFC 编译器据此推断出的组件名是 `index` —— 于是：
+ *
+ *   - `include: ['SystemUser']` 永远匹配不上（名字对不上）；
+ *   - 改成 `include: ['index']` 更糟：所有页面共用一个名字。
+ *
+ * 在加载时就挂上路由名，可以让两者自动保持一致，包括后端以后新增的菜单。
+ * 这个包装是 keep-alive 能生效的前提，去掉它缓存会静默失效（页面不会报错，只是每次都重建）。
+ */
+function withRouteName(loader: () => Promise<unknown>, routeName: string) {
+  return async () => {
+    const mod = (await loader()) as Record<string, unknown> | undefined
+    const component = (mod?.default ?? mod) as { name?: string } | undefined
+    if (component && typeof component === 'object' && !component.name) {
+      component.name = routeName
+    }
+    return mod
+  }
+}
+
+function resolveComponent(component: string, routeName: string): RouteRecordRaw['component'] {
   const loader = viewModules[`../views/${component}.vue`]
   if (loader) {
-    return loader as RouteRecordRaw['component']
+    return withRouteName(loader, routeName) as RouteRecordRaw['component']
   }
   // A menu pointing at a page that does not exist yet must not blank the screen or
   // throw; show the 404 view and say which component was missing.
@@ -43,7 +66,7 @@ function toRoute(item: RouterItem): RouteRecordRaw {
   } as RouteRecordRaw
 
   if (item.component) {
-    route.component = resolveComponent(item.component)
+    route.component = resolveComponent(item.component, item.name)
   }
   // A directory keeps `component` undefined: it is a pure grouping node, and its
   // children render into the nearest ancestor's <router-view>.
